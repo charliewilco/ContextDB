@@ -1,0 +1,5 @@
+# Use hard tabs for indentation
+hard_tabs = true
+
+# Set the width of each tab to 4 spaces (optional)
+tab_spaces = 4

@@ -6,7 +6,8 @@
       "Bash(cargo doc:*)",
       "Bash(cargo build:*)",
       "Bash(./target/release/contextdb:*)",
-      "Bash(chmod:*)"
+      "Bash(chmod:*)",
+      "Bash(cargo clippy:*)"
     ]
   }
 }

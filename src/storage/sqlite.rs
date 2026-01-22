@@ -92,7 +92,9 @@ impl SqliteStorage {
 	) -> StorageResult<bool> {
 		match filter {
 			ExpressionFilter::Equals(s) => Ok(expression == s),
-			ExpressionFilter::Contains(s) => Ok(expression.to_lowercase().contains(&s.to_lowercase())),
+			ExpressionFilter::Contains(s) => {
+				Ok(expression.to_lowercase().contains(&s.to_lowercase()))
+			}
 			ExpressionFilter::StartsWith(s) => Ok(expression.starts_with(s)),
 			ExpressionFilter::Matches(pattern) => {
 				let regex = Regex::new(pattern)
@@ -275,12 +277,10 @@ impl SqliteStorage {
 
 	fn query_expression_ids(&self, filter: &ExpressionFilter) -> StorageResult<HashSet<Uuid>> {
 		match filter {
-			ExpressionFilter::Equals(value) => {
-				self.query_ids_with_params(
-					"SELECT id FROM entries WHERE expression = ?1",
-					rusqlite::params![value],
-				)
-			}
+			ExpressionFilter::Equals(value) => self.query_ids_with_params(
+				"SELECT id FROM entries WHERE expression = ?1",
+				rusqlite::params![value],
+			),
 			ExpressionFilter::Contains(value) => {
 				let lowered = value.to_lowercase();
 				self.query_ids_with_params(
@@ -1024,12 +1024,8 @@ mod tests {
 
 		let filter = ExpressionFilter::Equals("exact match".to_string());
 		assert!(storage.matches_expression("exact match", &filter).unwrap());
-		assert!(!storage
-			.matches_expression("Exact Match", &filter)
-			.unwrap());
-		assert!(!storage
-			.matches_expression("exact match ", &filter)
-			.unwrap());
+		assert!(!storage.matches_expression("Exact Match", &filter).unwrap());
+		assert!(!storage.matches_expression("exact match ", &filter).unwrap());
 	}
 
 	#[test]
@@ -1052,16 +1048,10 @@ mod tests {
 		let storage = create_test_storage();
 
 		let filter = ExpressionFilter::StartsWith("Hello".to_string());
-		assert!(storage
-			.matches_expression("Hello World", &filter)
-			.unwrap());
+		assert!(storage.matches_expression("Hello World", &filter).unwrap());
 		assert!(storage.matches_expression("Hello", &filter).unwrap());
-		assert!(!storage
-			.matches_expression("hello world", &filter)
-			.unwrap()); // case sensitive
-		assert!(!storage
-			.matches_expression("Say Hello", &filter)
-			.unwrap());
+		assert!(!storage.matches_expression("hello world", &filter).unwrap()); // case sensitive
+		assert!(!storage.matches_expression("Say Hello", &filter).unwrap());
 	}
 
 	#[test]

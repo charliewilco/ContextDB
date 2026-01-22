@@ -1,8 +1,11 @@
-use crate::query::{ContextFilter, ExpressionFilter, Query, QueryResult, TemporalFilter};
+use crate::query::{
+	ContextFilter, ExpressionFilter, Query, QueryResult, RelationFilter, TemporalFilter,
+};
 use crate::storage::{StorageBackend, StorageError, StorageResult};
 use crate::types::Entry;
 use chrono::{DateTime, Utc};
 use rusqlite::{params, Connection};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::Path;
 use uuid::Uuid;
 
@@ -124,6 +127,85 @@ impl SqliteStorage {
 		}
 	}
 
+	fn load_relation_index(&self) -> StorageResult<RelationIndex> {
+		let mut stmt = self
+			.conn
+			.prepare("SELECT from_id, to_id FROM relations")
+			.map_err(|e| StorageError::Database(e.to_string()))?;
+
+		let mut adjacency: HashMap<Uuid, Vec<Uuid>> = HashMap::new();
+		let mut related_ids: HashSet<Uuid> = HashSet::new();
+
+		let rows = stmt
+			.query_map([], |row| {
+				let from_id_str: String = row.get(0)?;
+				let to_id_str: String = row.get(1)?;
+				let from_id =
+					Uuid::parse_str(&from_id_str).map_err(|_| rusqlite::Error::InvalidQuery)?;
+				let to_id =
+					Uuid::parse_str(&to_id_str).map_err(|_| rusqlite::Error::InvalidQuery)?;
+				Ok((from_id, to_id))
+			})
+			.map_err(|e| StorageError::Database(e.to_string()))?;
+
+		for row in rows {
+			let (from_id, to_id) = row.map_err(|e| StorageError::Database(e.to_string()))?;
+			adjacency.entry(from_id).or_default().push(to_id);
+			adjacency.entry(to_id).or_default().push(from_id);
+			related_ids.insert(from_id);
+			related_ids.insert(to_id);
+		}
+
+		Ok(RelationIndex {
+			adjacency,
+			related_ids,
+		})
+	}
+
+	fn direct_relations(&self, index: &RelationIndex, id: Uuid) -> HashSet<Uuid> {
+		index
+			.adjacency
+			.get(&id)
+			.map(|ids| ids.iter().copied().collect())
+			.unwrap_or_default()
+	}
+
+	fn within_distance_relations(
+		&self,
+		index: &RelationIndex,
+		from: Uuid,
+		max_hops: usize,
+	) -> HashSet<Uuid> {
+		if max_hops == 0 {
+			return HashSet::new();
+		}
+
+		let mut visited: HashSet<Uuid> = HashSet::new();
+		let mut results: HashSet<Uuid> = HashSet::new();
+		let mut queue: VecDeque<(Uuid, usize)> = VecDeque::new();
+
+		visited.insert(from);
+		queue.push_back((from, 0));
+
+		while let Some((current, hops)) = queue.pop_front() {
+			if hops >= max_hops {
+				continue;
+			}
+
+			if let Some(neighbors) = index.adjacency.get(&current) {
+				for &neighbor in neighbors {
+					if visited.insert(neighbor) {
+						let next_hops = hops + 1;
+						results.insert(neighbor);
+						queue.push_back((neighbor, next_hops));
+					}
+				}
+			}
+		}
+
+		results
+	}
+
 	fn generate_explanation(
 		&self,
 		_entry: &Entry,
@@ -146,6 +228,10 @@ impl SqliteStorage {
 
 		if query.temporal.is_some() {
 			parts.push("Matched temporal filter".to_string());
+		}
+
+		if query.relations.is_some() {
+			parts.push("Matched relation filter".to_string());
 		}
 
 		parts.join(", ")
@@ -251,6 +337,11 @@ impl StorageBackend for SqliteStorage {
 	fn query(&self, query: &Query) -> StorageResult<Vec<QueryResult>> {
 		// Start with all entries
 		let mut results = self.get_all_entries()?;
+		let relation_index = if query.relations.is_some() {
+			Some(self.load_relation_index()?)
+		} else {
+			None
+		};
 
 		// Apply semantic filter (vector similarity)
 		if let Some(ref meaning_filter) = query.meaning {
@@ -284,6 +375,29 @@ impl StorageBackend for SqliteStorage {
 		// Apply temporal filter
 		if let Some(ref temporal_filter) = query.temporal {
 			results.retain(|e| self.matches_temporal(e, temporal_filter));
+		}
+
+		// Apply relation filter
+		if let Some(ref relation_filter) = query.relations {
+			let index = relation_index
+				.as_ref()
+				.expect("relation index must be initialized when relations filter is set");
+			match relation_filter {
+				RelationFilter::DirectlyRelatedTo(id) => {
+					let related = self.direct_relations(index, *id);
+					results.retain(|e| related.contains(&e.id));
+				}
+				RelationFilter::WithinDistance { from, max_hops } => {
+					let related = self.within_distance_relations(index, *from, *max_hops);
+					results.retain(|e| related.contains(&e.id));
+				}
+				RelationFilter::HasRelations => {
+					results.retain(|e| index.related_ids.contains(&e.id));
+				}
+				RelationFilter::NoRelations => {
+					results.retain(|e| !index.related_ids.contains(&e.id));
+				}
+			}
 		}
 
 		// Apply limit
@@ -392,6 +506,11 @@ impl StorageBackend for SqliteStorage {
 	}
 }
 
+struct RelationIndex {
+	adjacency: HashMap<Uuid, Vec<Uuid>>,
+	related_ids: HashSet<Uuid>,
+}
+
 // Simple bincode serialize/deserialize for vectors
 mod bincode {
 	use serde::{Deserialize, Serialize};
@@ -408,8 +527,9 @@ mod bincode {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use crate::query::MeaningFilter;
+	use crate::query::{MeaningFilter, RelationFilter};
 	use chrono::TimeZone;
+	use std::collections::HashSet;
 
 	fn create_test_storage() -> SqliteStorage {
 		SqliteStorage::in_memory().unwrap()
@@ -1116,6 +1236,126 @@ mod tests {
 		let results = storage.query(&query).unwrap();
 
 		assert_eq!(results.len(), 1);
+	}
+
+	#[test]
+	fn test_query_by_relations_directly_related() {
+		let mut storage = create_test_storage();
+		let entry1 = create_test_entry(vec![0.1], "Entry 1");
+		let entry2 = create_test_entry(vec![0.2], "Entry 2");
+		let entry3 = create_test_entry(vec![0.3], "Entry 3");
+
+		storage.insert(&entry1).unwrap();
+		storage.insert(&entry2).unwrap();
+		storage.insert(&entry3).unwrap();
+
+		let entry1 = entry1.add_relation(entry2.id);
+		let entry2 = entry2.add_relation(entry3.id);
+
+		storage.update(&entry1).unwrap();
+		storage.update(&entry2).unwrap();
+
+		let query = Query {
+			meaning: None,
+			expression: None,
+			context: None,
+			relations: Some(RelationFilter::DirectlyRelatedTo(entry1.id)),
+			temporal: None,
+			limit: None,
+			explain: false,
+		};
+
+		let results = storage.query(&query).unwrap();
+		assert_eq!(results.len(), 1);
+		assert_eq!(results[0].entry.id, entry2.id);
+	}
+
+	#[test]
+	fn test_query_by_relations_within_distance() {
+		let mut storage = create_test_storage();
+		let entry1 = create_test_entry(vec![0.1], "Entry 1");
+		let entry2 = create_test_entry(vec![0.2], "Entry 2");
+		let entry3 = create_test_entry(vec![0.3], "Entry 3");
+		let entry4 = create_test_entry(vec![0.4], "Entry 4");
+
+		storage.insert(&entry1).unwrap();
+		storage.insert(&entry2).unwrap();
+		storage.insert(&entry3).unwrap();
+		storage.insert(&entry4).unwrap();
+
+		let entry1 = entry1.add_relation(entry2.id);
+		let entry2 = entry2.add_relation(entry3.id);
+
+		storage.update(&entry1).unwrap();
+		storage.update(&entry2).unwrap();
+
+		let query = Query {
+			meaning: None,
+			expression: None,
+			context: None,
+			relations: Some(RelationFilter::WithinDistance {
+				from: entry1.id,
+				max_hops: 2,
+			}),
+			temporal: None,
+			limit: None,
+			explain: false,
+		};
+
+		let mut results = storage.query(&query).unwrap();
+		results.sort_by_key(|result| result.entry.expression.clone());
+		assert_eq!(results.len(), 2);
+		assert_eq!(results[0].entry.id, entry2.id);
+		assert_eq!(results[1].entry.id, entry3.id);
+	}
+
+	#[test]
+	fn test_query_by_relations_has_and_no_relations() {
+		let mut storage = create_test_storage();
+		let entry1 = create_test_entry(vec![0.1], "Entry 1");
+		let entry2 = create_test_entry(vec![0.2], "Entry 2");
+		let entry3 = create_test_entry(vec![0.3], "Entry 3");
+		let entry4 = create_test_entry(vec![0.4], "Entry 4");
+
+		storage.insert(&entry1).unwrap();
+		storage.insert(&entry2).unwrap();
+		storage.insert(&entry3).unwrap();
+		storage.insert(&entry4).unwrap();
+
+		let entry1 = entry1.add_relation(entry2.id);
+		let entry2 = entry2.add_relation(entry3.id);
+
+		storage.update(&entry1).unwrap();
+		storage.update(&entry2).unwrap();
+
+		let query_has = Query {
+			meaning: None,
+			expression: None,
+			context: None,
+			relations: Some(RelationFilter::HasRelations),
+			temporal: None,
+			limit: None,
+			explain: false,
+		};
+		let results_has = storage.query(&query_has).unwrap();
+		let has_ids: HashSet<Uuid> = results_has.into_iter().map(|r| r.entry.id).collect();
+		assert!(has_ids.contains(&entry1.id));
+		assert!(has_ids.contains(&entry2.id));
+		assert!(has_ids.contains(&entry3.id));
+		assert!(!has_ids.contains(&entry4.id));
+
+		let query_none = Query {
+			meaning: None,
+			expression: None,
+			context: None,
+			relations: Some(RelationFilter::NoRelations),
+			temporal: None,
+			limit: None,
+			explain: false,
+		};
+		let results_none = storage.query(&query_none).unwrap();
+		assert_eq!(results_none.len(), 1);
+		assert_eq!(results_none[0].entry.id, entry4.id);
 	}
 
 	#[test]

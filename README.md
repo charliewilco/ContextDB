@@ -93,14 +93,14 @@ The easiest way to get started is with the `contextdb` CLI.
 #### Homebrew (macOS/Linux)
 
 ```bash
-brew tap yourusername/contextdb
+brew tap charliewilco/contextdb
 brew install contextdb
 ```
 
 #### Curl (macOS/Linux)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/yourusername/contextdb/main/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/charliewilco/contextdb/main/scripts/install.sh | bash
 ```
 
 #### Cargo (any platform)
@@ -112,7 +112,7 @@ cargo install contextdb
 #### From Source
 
 ```bash
-git clone https://github.com/yourusername/contextdb.git
+git clone https://github.com/charliewilco/contextdb.git
 cd contextdb
 cargo install --path .
 ```
@@ -126,7 +126,7 @@ Add to your `Cargo.toml`:
 contextdb = "0.1"
 
 # Or from git
-contextdb = { git = "https://github.com/yourusername/contextdb" }
+contextdb = { git = "https://github.com/charliewilco/contextdb" }
 ```
 
 ### Verify Installation
@@ -934,7 +934,7 @@ Contributions welcome! This is an exploratory project.
 
 ```bash
 # Clone repo
-git clone https://github.com/yourusername/contextdb.git
+git clone https://github.com/charliewilco/contextdb.git
 cd contextdb
 
 # Run tests (154 unit tests)
@@ -965,7 +965,7 @@ The project includes comprehensive test coverage:
 
 ### Submit Issues
 
-Found a bug? Have a feature request? [Open an issue](https://github.com/yourusername/contextdb/issues)
+Found a bug? Have a feature request? [Open an issue](https://github.com/charliewilco/contextdb/issues)
 
 ### Pull Requests
 
@@ -1111,7 +1111,7 @@ If you use ContextDB in research:
   author = {Your Name},
   title = {ContextDB: A Novel Database for Semantic Data with Human Accountability},
   year = {2026},
-  url = {https://github.com/yourusername/contextdb}
+  url = {https://github.com/charliewilco/contextdb}
 }
 ```
 
@@ -1119,8 +1119,8 @@ If you use ContextDB in research:
 
 ## Contact
 
-- **Issues**: [GitHub Issues](https://github.com/yourusername/contextdb/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/yourusername/contextdb/discussions)
+- **Issues**: [GitHub Issues](https://github.com/charliewilco/contextdb/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/charliewilco/contextdb/discussions)
 - **Email**: your.email@example.com
 
 ---

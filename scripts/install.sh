@@ -3,7 +3,7 @@
 # ContextDB Installer
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/yourusername/contextdb/main/scripts/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/charliewilco/contextdb/main/scripts/install.sh | bash
 #
 # Or with options:
 #   curl -fsSL ... | bash -s -- --prefix=/custom/path
@@ -12,7 +12,7 @@
 set -e
 
 # Configuration
-REPO="yourusername/contextdb"
+REPO="charliewilco/contextdb"
 BINARY_NAME="contextdb"
 INSTALL_DIR="${INSTALL_DIR:-$HOME/.local/bin}"
 

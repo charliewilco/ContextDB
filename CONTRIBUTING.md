@@ -6,7 +6,7 @@ Thanks for your interest in contributing! This is an exploratory project, and we
 
 ```bash
 # Fork and clone the repo
-git clone https://github.com/yourusername/contextdb.git
+git clone https://github.com/charliewilco/contextdb.git
 cd contextdb
 
 # Run tests
@@ -209,8 +209,8 @@ cargo run --example your_example
 
 ## Questions?
 
-- Open an [issue](https://github.com/yourusername/contextdb/issues)
-- Start a [discussion](https://github.com/yourusername/contextdb/discussions)
+- Open an [issue](https://github.com/charliewilco/contextdb/issues)
+- Start a [discussion](https://github.com/charliewilco/contextdb/discussions)
 
 ## Code of Conduct
 

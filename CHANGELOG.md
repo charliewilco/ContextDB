@@ -48,5 +48,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Single-threaded query execution
 - Not optimized for > 100k entries
 
-[Unreleased]: https://github.com/yourusername/contextdb/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/yourusername/contextdb/releases/tag/v0.1.0
+[Unreleased]: https://github.com/charliewilco/contextdb/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/charliewilco/contextdb/releases/tag/v0.1.0

@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 description = "A semantic database for LLM applications with human-readable inspection"
 license = "MIT"
-repository = "https://github.com/yourusername/contextdb"
+repository = "https://github.com/charliewilco/contextdb"
 keywords = ["database", "embeddings", "llm", "semantic-search", "vector"]
 categories = ["database", "command-line-utilities"]
 

@@ -236,6 +236,147 @@ impl SqliteStorage {
 
 		parts.join(", ")
 	}
+
+	fn get_entry_ids(&self) -> StorageResult<HashSet<Uuid>> {
+		let mut stmt = self
+			.conn
+			.prepare("SELECT id FROM entries")
+			.map_err(|e| StorageError::Database(e.to_string()))?;
+
+		let rows = stmt
+			.query_map([], |row| {
+				let id_str: String = row.get(0)?;
+				Uuid::parse_str(&id_str).map_err(|_| rusqlite::Error::InvalidQuery)
+			})
+			.map_err(|e| StorageError::Database(e.to_string()))?;
+
+		let mut ids = HashSet::new();
+		for row in rows {
+			let id = row.map_err(|e| StorageError::Database(e.to_string()))?;
+			ids.insert(id);
+		}
+
+		Ok(ids)
+	}
+
+	fn get_entries_by_ids(&self, ids: &HashSet<Uuid>) -> StorageResult<Vec<Entry>> {
+		let mut entries = Vec::with_capacity(ids.len());
+		for id in ids {
+			entries.push(self.get(*id)?);
+		}
+		Ok(entries)
+	}
+
+	fn query_expression_ids(&self, filter: &ExpressionFilter) -> StorageResult<HashSet<Uuid>> {
+		match filter {
+			ExpressionFilter::Equals(value) => {
+				self.query_ids_with_params(
+					"SELECT id FROM entries WHERE expression = ?1",
+					rusqlite::params![value],
+				)
+			}
+			ExpressionFilter::Contains(value) => {
+				let lowered = value.to_lowercase();
+				self.query_ids_with_params(
+					"SELECT id FROM entries WHERE INSTR(LOWER(expression), ?1) > 0",
+					rusqlite::params![lowered],
+				)
+			}
+			ExpressionFilter::StartsWith(value) => {
+				let prefix_len = value.chars().count() as i64;
+				self.query_ids_with_params(
+					"SELECT id FROM entries WHERE SUBSTR(expression, 1, ?2) = ?1",
+					rusqlite::params![value, prefix_len],
+				)
+			}
+			ExpressionFilter::Matches(value) => self.query_ids_with_params(
+				"SELECT id FROM entries WHERE INSTR(expression, ?1) > 0",
+				rusqlite::params![value],
+			),
+		}
+	}
+
+	fn query_temporal_ids(&self, filter: &TemporalFilter) -> StorageResult<HashSet<Uuid>> {
+		match filter {
+			TemporalFilter::CreatedAfter(dt) => self.query_ids_with_params(
+				"SELECT id FROM entries WHERE created_at > ?1",
+				rusqlite::params![dt.to_rfc3339()],
+			),
+			TemporalFilter::CreatedBefore(dt) => self.query_ids_with_params(
+				"SELECT id FROM entries WHERE created_at < ?1",
+				rusqlite::params![dt.to_rfc3339()],
+			),
+			TemporalFilter::CreatedBetween(start, end) => self.query_ids_with_params(
+				"SELECT id FROM entries WHERE created_at > ?1 AND created_at < ?2",
+				rusqlite::params![start.to_rfc3339(), end.to_rfc3339()],
+			),
+			TemporalFilter::UpdatedAfter(dt) => self.query_ids_with_params(
+				"SELECT id FROM entries WHERE updated_at > ?1",
+				rusqlite::params![dt.to_rfc3339()],
+			),
+			TemporalFilter::UpdatedBefore(dt) => self.query_ids_with_params(
+				"SELECT id FROM entries WHERE updated_at < ?1",
+				rusqlite::params![dt.to_rfc3339()],
+			),
+		}
+	}
+
+	fn query_relation_ids(&self, filter: &RelationFilter) -> StorageResult<HashSet<Uuid>> {
+		match filter {
+			RelationFilter::DirectlyRelatedTo(id) => {
+				let id_str = id.to_string();
+				self.query_ids_with_params(
+					"SELECT to_id AS id FROM relations WHERE from_id = ?1
+                     UNION
+                     SELECT from_id AS id FROM relations WHERE to_id = ?1",
+					rusqlite::params![id_str],
+				)
+			}
+			RelationFilter::WithinDistance { from, max_hops } => {
+				let index = self.load_relation_index()?;
+				Ok(self.within_distance_relations(&index, *from, *max_hops))
+			}
+			RelationFilter::HasRelations => self.query_ids_with_params(
+				"SELECT from_id AS id FROM relations
+                 UNION
+                 SELECT to_id AS id FROM relations",
+				rusqlite::params![],
+			),
+			RelationFilter::NoRelations => {
+				let all_ids = self.get_entry_ids()?;
+				let related_ids = self.query_relation_ids(&RelationFilter::HasRelations)?;
+				Ok(all_ids
+					.difference(&related_ids)
+					.copied()
+					.collect::<HashSet<_>>())
+			}
+		}
+	}
+
+	fn query_ids_with_params<P>(&self, sql: &str, params: P) -> StorageResult<HashSet<Uuid>>
+	where
+		P: rusqlite::Params,
+	{
+		let mut stmt = self
+			.conn
+			.prepare(sql)
+			.map_err(|e| StorageError::Database(e.to_string()))?;
+
+		let rows = stmt
+			.query_map(params, |row| {
+				let id_str: String = row.get(0)?;
+				Uuid::parse_str(&id_str).map_err(|_| rusqlite::Error::InvalidQuery)
+			})
+			.map_err(|e| StorageError::Database(e.to_string()))?;
+
+		let mut ids = HashSet::new();
+		for row in rows {
+			let id = row.map_err(|e| StorageError::Database(e.to_string()))?;
+			ids.insert(id);
+		}
+
+		Ok(ids)
+	}
 }
 
 impl StorageBackend for SqliteStorage {
@@ -335,8 +476,42 @@ impl StorageBackend for SqliteStorage {
 	}
 
 	fn query(&self, query: &Query) -> StorageResult<Vec<QueryResult>> {
-		// Start with all entries
-		let mut results = self.get_all_entries()?;
+		let mut candidate_ids: Option<HashSet<Uuid>> = None;
+
+		if let Some(ref expr_filter) = query.expression {
+			let ids = self.query_expression_ids(expr_filter)?;
+			candidate_ids = Some(match candidate_ids {
+				Some(existing) => existing.intersection(&ids).copied().collect(),
+				None => ids,
+			});
+		}
+
+		if let Some(ref temporal_filter) = query.temporal {
+			let ids = self.query_temporal_ids(temporal_filter)?;
+			candidate_ids = Some(match candidate_ids {
+				Some(existing) => existing.intersection(&ids).copied().collect(),
+				None => ids,
+			});
+		}
+
+		if let Some(ref relation_filter) = query.relations {
+			let ids = self.query_relation_ids(relation_filter)?;
+			candidate_ids = Some(match candidate_ids {
+				Some(existing) => existing.intersection(&ids).copied().collect(),
+				None => ids,
+			});
+		}
+
+		if matches!(candidate_ids, Some(ref ids) if ids.is_empty()) {
+			return Ok(Vec::new());
+		}
+
+		// Start with filtered entries if possible
+		let mut results = match candidate_ids {
+			Some(ref ids) => self.get_entries_by_ids(ids)?,
+			None => self.get_all_entries()?,
+		};
+
 		let relation_index = if query.relations.is_some() {
 			Some(self.load_relation_index()?)
 		} else {

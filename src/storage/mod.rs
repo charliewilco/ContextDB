@@ -103,7 +103,7 @@ mod tests {
 	fn test_storage_result_ok() {
 		let result: StorageResult<i32> = Ok(42);
 		assert!(result.is_ok());
-		assert_eq!(result.unwrap(), 42);
+		assert!(matches!(result, Ok(42)));
 	}
 
 	#[test]
@@ -116,7 +116,7 @@ mod tests {
 	fn test_storage_result_map() {
 		let result: StorageResult<i32> = Ok(42);
 		let mapped = result.map(|x| x * 2);
-		assert_eq!(mapped.unwrap(), 84);
+		assert!(matches!(mapped, Ok(84)));
 	}
 
 	#[test]
@@ -129,7 +129,7 @@ mod tests {
 				Err(StorageError::InvalidDimensions)
 			}
 		});
-		assert_eq!(chained.unwrap(), 84);
+		assert!(matches!(chained, Ok(84)));
 	}
 
 	// ==================== StorageBackend Trait Tests ====================

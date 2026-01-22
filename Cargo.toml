@@ -1,0 +1,49 @@
+[package]
+name = "contextdb"
+version = "0.1.0"
+edition = "2021"
+description = "A semantic database for LLM applications with human-readable inspection"
+license = "MIT"
+repository = "https://github.com/yourusername/contextdb"
+keywords = ["database", "embeddings", "llm", "semantic-search", "vector"]
+categories = ["database", "command-line-utilities"]
+
+[[bin]]
+name = "contextdb"
+path = "src/bin/main.rs"
+
+[lib]
+name = "contextdb"
+path = "src/lib.rs"
+
+[dependencies]
+uuid = { version = "1.6", features = ["v4", "serde"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+chrono = { version = "0.4", features = ["serde"] }
+thiserror = "1.0"
+
+# Vector operations
+ndarray = "0.15"
+
+# Storage backends
+rusqlite = { version = "0.30", features = ["bundled"] }
+
+# CLI dependencies
+clap = { version = "4.4", features = ["derive", "env"] }
+colored = "2.1"
+tabled = "0.15"
+dialoguer = "0.11"
+indicatif = "0.17"
+dirs = "5.0"
+
+# For future HNSW index
+# hnsw_rs = "0.3"
+
+[dev-dependencies]
+anyhow = "1.0"
+
+[profile.release]
+lto = true
+strip = true
+opt-level = "z"

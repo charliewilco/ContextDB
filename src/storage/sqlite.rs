@@ -4,6 +4,7 @@ use crate::query::{
 use crate::storage::{StorageBackend, StorageError, StorageResult};
 use crate::types::Entry;
 use chrono::{DateTime, Utc};
+use regex::Regex;
 use rusqlite::{params, Connection};
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::Path;
@@ -84,14 +85,19 @@ impl SqliteStorage {
 		entry_ids.iter().map(|id| self.get(*id)).collect()
 	}
 
-	fn matches_expression(&self, expression: &str, filter: &ExpressionFilter) -> bool {
+	fn matches_expression(
+		&self,
+		expression: &str,
+		filter: &ExpressionFilter,
+	) -> StorageResult<bool> {
 		match filter {
-			ExpressionFilter::Equals(s) => expression == s,
-			ExpressionFilter::Contains(s) => expression.to_lowercase().contains(&s.to_lowercase()),
-			ExpressionFilter::StartsWith(s) => expression.starts_with(s),
+			ExpressionFilter::Equals(s) => Ok(expression == s),
+			ExpressionFilter::Contains(s) => Ok(expression.to_lowercase().contains(&s.to_lowercase())),
+			ExpressionFilter::StartsWith(s) => Ok(expression.starts_with(s)),
 			ExpressionFilter::Matches(pattern) => {
-				// Simple regex matching - in production use regex crate
-				expression.contains(pattern)
+				let regex = Regex::new(pattern)
+					.map_err(|e| StorageError::Database(format!("Invalid regex: {}", e)))?;
+				Ok(regex.is_match(expression))
 			}
 		}
 	}
@@ -289,10 +295,14 @@ impl SqliteStorage {
 					rusqlite::params![value, prefix_len],
 				)
 			}
-			ExpressionFilter::Matches(value) => self.query_ids_with_params(
-				"SELECT id FROM entries WHERE INSTR(expression, ?1) > 0",
-				rusqlite::params![value],
-			),
+			ExpressionFilter::Matches(value) => {
+				let _ = Regex::new(value)
+					.map_err(|e| StorageError::Database(format!("Invalid regex: {}", e)))?;
+				self.query_ids_with_params(
+					"SELECT id FROM entries WHERE INSTR(expression, ?1) > 0",
+					rusqlite::params![value],
+				)
+			}
 		}
 	}
 
@@ -539,7 +549,13 @@ impl StorageBackend for SqliteStorage {
 
 		// Apply expression filter
 		if let Some(ref expr_filter) = query.expression {
-			results.retain(|e| self.matches_expression(&e.expression, expr_filter));
+			let mut filtered = Vec::with_capacity(results.len());
+			for entry in results {
+				if self.matches_expression(&entry.expression, expr_filter)? {
+					filtered.push(entry);
+				}
+			}
+			results = filtered;
 		}
 
 		// Apply context filter
@@ -1007,9 +1023,13 @@ mod tests {
 		let storage = create_test_storage();
 
 		let filter = ExpressionFilter::Equals("exact match".to_string());
-		assert!(storage.matches_expression("exact match", &filter));
-		assert!(!storage.matches_expression("Exact Match", &filter));
-		assert!(!storage.matches_expression("exact match ", &filter));
+		assert!(storage.matches_expression("exact match", &filter).unwrap());
+		assert!(!storage
+			.matches_expression("Exact Match", &filter)
+			.unwrap());
+		assert!(!storage
+			.matches_expression("exact match ", &filter)
+			.unwrap());
 	}
 
 	#[test]
@@ -1017,10 +1037,14 @@ mod tests {
 		let storage = create_test_storage();
 
 		let filter = ExpressionFilter::Contains("test".to_string());
-		assert!(storage.matches_expression("This is a test", &filter));
-		assert!(storage.matches_expression("TEST", &filter));
-		assert!(storage.matches_expression("Testing", &filter));
-		assert!(!storage.matches_expression("No match here", &filter));
+		assert!(storage
+			.matches_expression("This is a test", &filter)
+			.unwrap());
+		assert!(storage.matches_expression("TEST", &filter).unwrap());
+		assert!(storage.matches_expression("Testing", &filter).unwrap());
+		assert!(!storage
+			.matches_expression("No match here", &filter)
+			.unwrap());
 	}
 
 	#[test]
@@ -1028,21 +1052,39 @@ mod tests {
 		let storage = create_test_storage();
 
 		let filter = ExpressionFilter::StartsWith("Hello".to_string());
-		assert!(storage.matches_expression("Hello World", &filter));
-		assert!(storage.matches_expression("Hello", &filter));
-		assert!(!storage.matches_expression("hello world", &filter)); // case sensitive
-		assert!(!storage.matches_expression("Say Hello", &filter));
+		assert!(storage
+			.matches_expression("Hello World", &filter)
+			.unwrap());
+		assert!(storage.matches_expression("Hello", &filter).unwrap());
+		assert!(!storage
+			.matches_expression("hello world", &filter)
+			.unwrap()); // case sensitive
+		assert!(!storage
+			.matches_expression("Say Hello", &filter)
+			.unwrap());
 	}
 
 	#[test]
 	fn test_matches_expression_matches_pattern() {
 		let storage = create_test_storage();
 
-		// Note: Current implementation is simple contains, not full regex
 		let filter = ExpressionFilter::Matches("error".to_string());
-		assert!(storage.matches_expression("An error occurred", &filter));
-		assert!(storage.matches_expression("error", &filter));
-		assert!(!storage.matches_expression("An Error occurred", &filter)); // case sensitive
+		assert!(storage
+			.matches_expression("An error occurred", &filter)
+			.unwrap());
+		assert!(storage.matches_expression("error", &filter).unwrap());
+		assert!(!storage
+			.matches_expression("An Error occurred", &filter)
+			.unwrap()); // case sensitive
+	}
+
+	#[test]
+	fn test_matches_expression_invalid_regex() {
+		let storage = create_test_storage();
+
+		let filter = ExpressionFilter::Matches("[".to_string());
+		let result = storage.matches_expression("anything", &filter);
+		assert!(result.is_err());
 	}
 
 	// ==================== Context Filter Tests ====================

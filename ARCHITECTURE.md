@@ -26,6 +26,20 @@ ContextDB uses a trait-based storage abstraction inspired by Prisma's approach -
 └──────────┘   └──────────────┘         └─────────┘
 ```
 
+## Repository Layout
+
+```
+src/
+├── lib.rs            # Public API surface
+├── types.rs          # Entry + cosine similarity
+├── query.rs          # Query types and filters
+└── storage/
+    ├── mod.rs        # StorageBackend trait + errors
+    └── sqlite.rs     # SQLite implementation
+```
+
+Examples live in `examples/`, and the CLI entry point is in `src/bin/main.rs`.
+
 ## The StorageBackend Trait
 
 All backends must implement this trait:
@@ -43,6 +57,15 @@ pub trait StorageBackend: Send {
 ```
 
 This trait defines the contract - how ContextDB expects to interact with storage. The implementation details are up to each backend.
+
+## Data Flow (Insert → Query → Result)
+
+1. **Insert**: `ContextDB::insert` forwards to the backend.
+2. **Serialize**: SQLite stores `meaning` as a BLOB and `context` as JSON text.
+3. **Query**: `ContextDB::query` forwards the unified `Query` to the backend.
+4. **Filter/Rank**: Backends apply text/context/temporal filters, then vector similarity.
+5. **Explain**: Optional explanations are assembled from matched filters.
+6. **Return**: Results include `Entry`, optional similarity score, and optional explanation.
 
 ## Why This Design?
 
@@ -131,6 +154,12 @@ The default `SqliteStorage` backend:
 └─────────────────────────────────────┘
 ```
 
+### Serialization Details
+
+- `meaning`: stored as a BLOB of `f32` values.
+- `context`: stored as JSON text and queried via `serde_json::Value::pointer`.
+- `relations`: stored as rows in `relations(from_id, to_id)` with indexes on both sides.
+
 ### Query Execution
 
 1. **Load candidates**: Get all entries (or use indices for initial filtering)
@@ -140,6 +169,21 @@ The default `SqliteStorage` backend:
 3. **Sort by similarity** if semantic search used
 4. **Apply limit**
 5. **Generate explanations** if requested
+
+Notes:
+- **Context paths** use JSON Pointer syntax (e.g., `/category`, `/tags/0`).
+- **Vector similarity** is cosine similarity, computed in-memory.
+- **Relations** are stored as an adjacency list (`relations` table).
+
+## Error Model
+
+Storage errors are normalized through `StorageError` so callers get a consistent surface
+across backends (I/O failures, serialization errors, and not-found cases).
+
+## Concurrency Model
+
+The current SQLite backend is synchronous and optimized for embedded usage. Parallel query
+execution and concurrent writes are future targets (see roadmap in README).
 
 ## Future Backends
 

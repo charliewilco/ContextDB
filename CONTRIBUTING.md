@@ -32,7 +32,7 @@ cargo clippy
 - GraphQL API for human inspection
 - Query language parser (text-based queries)
 - Batch operations
-- Update/delete operations
+- Query builder conveniences (relations/top_k)
 - HTTP server mode
 
 ### 📚 Documentation
@@ -126,7 +126,7 @@ src/
 ├── lib.rs          # Public API
 ├── types.rs        # Entry, cosine_similarity
 ├── query.rs        # Query types and filters
-└── storage.rs      # SQLite backend
+└── storage/        # Backends (sqlite) + StorageBackend trait
 ```
 
 ## Testing Strategy

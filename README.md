@@ -21,7 +21,7 @@ db.insert(&entry)?;
 // LLMs query by similarity, humans query by text
 let results = db.query(&Query::new()
     .with_meaning(query_vector, Some(0.8))
-    .with_expression(ExpressionFilter::Contains("onion"))
+    .with_expression(ExpressionFilter::Contains("onion".to_string()))
 )?;
 ```
 
@@ -34,11 +34,15 @@ let results = db.query(&Query::new()
 - [Quick Start](#quick-start)
 - [Core Concepts](#core-concepts)
 - [Query Language](#query-language)
+- [Entry Lifecycle](#entry-lifecycle)
+- [Embeddings Guide](#embeddings-guide)
+- [Advanced Query Construction](#advanced-query-construction)
 - [Use Cases](#use-cases)
 - [Architecture](#architecture)
 - [API Reference](#api-reference)
 - [Performance](#performance)
 - [Roadmap](#roadmap)
+- [Data Portability](#data-portability)
 - [Contributing](#contributing)
 - [FAQ](#faq)
 
@@ -198,6 +202,24 @@ contextdb delete mydata.db abc123
 contextdb delete mydata.db abc123 --force
 ```
 
+### Import/Export Format
+
+`contextdb export` writes a JSON array of `Entry` objects. `contextdb import` expects the same format.
+
+```json
+[
+  {
+    "id": "f4fdc8c4-5a4e-4d92-9b9b-9a2a0cc8b3c3",
+    "meaning": [0.1, 0.2, 0.3],
+    "expression": "User prefers cold brew coffee",
+    "context": {"category": "dietary", "confidence": 0.9},
+    "created_at": "2026-01-15T10:30:00Z",
+    "updated_at": "2026-01-15T10:30:00Z",
+    "relations": []
+  }
+]
+```
+
 ### REPL Mode
 
 Interactive mode for exploring your database:
@@ -270,7 +292,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Query by text (human inspection)
     let text_results = db.query(
         &Query::new()
-            .with_expression(ExpressionFilter::Contains("onion"))
+            .with_expression(ExpressionFilter::Contains("onion".to_string()))
     )?;
     
     for result in text_results {
@@ -294,6 +316,21 @@ This shows:
 - Metadata filtering
 - Hybrid queries combining multiple filters
 - Explainable results
+
+### More Examples
+
+```bash
+cargo run --example backends
+cargo run --example relations
+cargo run --example lifecycle
+cargo run --example advanced_queries
+```
+
+Examples cover:
+- Backend swapping and storage setup
+- Relation graphs and traversal queries
+- Entry update/delete lifecycle
+- Advanced query construction (top_k, temporal, hybrid)
 
 ---
 
@@ -377,19 +414,19 @@ Query::new()
 ```rust
 // Contains substring (case-insensitive)
 Query::new()
-    .with_expression(ExpressionFilter::Contains("onion"))
+    .with_expression(ExpressionFilter::Contains("onion".to_string()))
 
 // Exact match
 Query::new()
-    .with_expression(ExpressionFilter::Equals("exact text"))
+    .with_expression(ExpressionFilter::Equals("exact text".to_string()))
 
 // Starts with prefix
 Query::new()
-    .with_expression(ExpressionFilter::StartsWith("User"))
+    .with_expression(ExpressionFilter::StartsWith("User".to_string()))
 
 // Regex match
 Query::new()
-    .with_expression(ExpressionFilter::Matches(r"\d{3}-\d{4}"))
+    .with_expression(ExpressionFilter::Matches(r"\d{3}-\d{4}".to_string()))
 ```
 
 **Use case**: Human inspection, debugging, full-text search
@@ -418,41 +455,48 @@ Query::new()
 // Combine with AND
 Query::new()
     .with_context(ContextFilter::And(vec![
-        ContextFilter::PathEquals("/category", json!("work")),
-        ContextFilter::PathEquals("/priority", json!("high"))
+        ContextFilter::PathEquals("/category".to_string(), json!("work")),
+        ContextFilter::PathEquals("/priority".to_string(), json!("high"))
     ]))
 
 // Combine with OR
 Query::new()
     .with_context(ContextFilter::Or(vec![
-        ContextFilter::PathEquals("/status", json!("urgent")),
-        ContextFilter::PathEquals("/status", json!("critical"))
+        ContextFilter::PathEquals("/status".to_string(), json!("urgent")),
+        ContextFilter::PathEquals("/status".to_string(), json!("critical"))
     ]))
 ```
 
 **Use case**: Domain-specific filtering, structured queries
 
+**Paths** use JSON Pointer syntax (e.g., `/category`, `/tags/0`).
+
 ### 4. Graph Queries (Relationship Traversal)
 
 ```rust
-// Directly related entries
-Query::new()
-    .with_relations(RelationFilter::DirectlyRelatedTo(entry_id))
+// Relations are set via the query struct (no builder method yet)
+let query = Query {
+    relations: Some(RelationFilter::DirectlyRelatedTo(entry_id)),
+    ..Query::new()
+};
 
-// Within N hops
-Query::new()
-    .with_relations(RelationFilter::WithinDistance {
+let query = Query {
+    relations: Some(RelationFilter::WithinDistance {
         from: entry_id,
-        max_hops: 3
-    })
+        max_hops: 3,
+    }),
+    ..Query::new()
+};
 
-// Has any relations
-Query::new()
-    .with_relations(RelationFilter::HasRelations)
+let query = Query {
+    relations: Some(RelationFilter::HasRelations),
+    ..Query::new()
+};
 
-// Has no relations
-Query::new()
-    .with_relations(RelationFilter::NoRelations)
+let query = Query {
+    relations: Some(RelationFilter::NoRelations),
+    ..Query::new()
+};
 ```
 
 **Use case**: Context chains, related memories, graph exploration
@@ -460,12 +504,12 @@ Query::new()
 ### 5. Temporal Queries (Time-Based)
 
 ```rust
-use chrono::prelude::*;
+use chrono::{TimeZone, Utc};
 
 // Created after timestamp
 Query::new()
     .with_temporal(TemporalFilter::CreatedAfter(
-        Utc.ymd(2026, 1, 1).and_hms(0, 0, 0)
+        Utc.with_ymd_and_hms(2026, 1, 1, 0, 0, 0).unwrap()
     ))
 
 // Created before timestamp
@@ -492,10 +536,10 @@ The real power comes from combining filters:
 //  similar to this query, with high confidence"
 Query::new()
     .with_meaning(embedding, Some(0.8))
-    .with_expression(ExpressionFilter::Contains("onion"))
+    .with_expression(ExpressionFilter::Contains("onion".to_string()))
     .with_context(ContextFilter::And(vec![
-        ContextFilter::PathEquals("/category", json!("dietary")),
-        ContextFilter::PathEquals("/confidence", json!("high"))
+        ContextFilter::PathEquals("/category".to_string(), json!("dietary")),
+        ContextFilter::PathEquals("/confidence".to_string(), json!("high"))
     ]))
     .with_temporal(TemporalFilter::CreatedAfter(last_week))
     .with_limit(10)
@@ -508,7 +552,7 @@ Query::new()
 let results = db.query(
     &Query::new()
         .with_meaning(vector, Some(0.8))
-        .with_expression(ExpressionFilter::Contains("typescript"))
+        .with_expression(ExpressionFilter::Contains("typescript".to_string()))
         .with_explanation()  // ← Enable explanations
 )?;
 
@@ -527,6 +571,60 @@ for result in results {
 ```
 
 ---
+
+## Entry Lifecycle
+
+Create, update, and delete entries directly through the API:
+
+```rust
+use contextdb::{ContextDB, Entry};
+use serde_json::json;
+
+let mut db = ContextDB::new("memories.db")?;
+
+let entry = Entry::new(vec![0.2, 0.3, 0.4], "Initial note".to_string())
+    .with_context(json!({"category": "note"}));
+db.insert(&entry)?;
+
+// Update the entry in place
+let mut updated = db.get(entry.id)?;
+updated.expression = "Revised note".to_string();
+updated.context = json!({"category": "note", "status": "edited"});
+db.update(&updated)?;
+
+// Delete when no longer needed
+db.delete(entry.id)?;
+```
+
+## Embeddings Guide
+
+ContextDB stores vectors, but you supply embeddings. See `EMBEDDINGS.md` for:
+- Model selection trade-offs
+- Batch embedding pipelines
+- Chunking long documents
+- Normalization and caching tips
+
+Quick link: `EMBEDDINGS.md`
+
+## Advanced Query Construction
+
+Some filters (like relation queries or `top_k`) are set directly on the struct:
+
+```rust
+use contextdb::{MeaningFilter, Query, RelationFilter};
+
+let query = Query {
+    meaning: Some(MeaningFilter {
+        vector: vec![0.1, 0.2, 0.3],
+        threshold: Some(0.75),
+        top_k: Some(5),
+    }),
+    relations: Some(RelationFilter::HasRelations),
+    ..Query::new()
+};
+```
+
+You can freely combine these with `with_expression`, `with_context`, and `with_temporal`.
 
 ## Use Cases
 
@@ -582,7 +680,7 @@ db.insert(&doc)?;
 let results = db.query(
     &Query::new()
         .with_meaning(query_embedding, Some(0.7))
-        .with_context(ContextFilter::PathEquals("/source", json!("internal_docs")))
+        .with_context(ContextFilter::PathEquals("/source".to_string(), json!("internal_docs")))
         .with_explanation()
 )?;
 
@@ -614,7 +712,7 @@ db.insert(&fact)?;
 // User inspects their memories
 let my_memories = db.query(
     &Query::new()
-        .with_expression(ExpressionFilter::Contains("prefer"))
+        .with_expression(ExpressionFilter::Contains("prefer".to_string()))
         .with_temporal(TemporalFilter::CreatedAfter(last_month))
 )?;
 
@@ -632,22 +730,22 @@ let my_memories = db.query(
 let planning_context = db.query(
     &Query::new()
         .with_meaning(task_embedding, Some(0.8))
-        .with_context(ContextFilter::PathEquals("/priority", json!("high")))
+        .with_context(ContextFilter::PathEquals("/priority".to_string(), json!("high")))
 )?;
 
 // Agent 2 (Executor): Structured query
 let tasks = db.query(
     &Query::new()
         .with_context(ContextFilter::And(vec![
-            ContextFilter::PathEquals("/status", json!("pending")),
-            ContextFilter::PathEquals("/assigned_to", json!("executor"))
+            ContextFilter::PathEquals("/status".to_string(), json!("pending")),
+            ContextFilter::PathEquals("/assigned_to".to_string(), json!("executor"))
         ]))
 )?;
 
 // Human supervisor: Natural language inspection
 let overview = db.query(
     &Query::new()
-        .with_expression(ExpressionFilter::Contains("urgent"))
+        .with_expression(ExpressionFilter::Contains("urgent".to_string()))
         .with_temporal(TemporalFilter::CreatedAfter(today))
 )?;
 ```
@@ -665,7 +763,7 @@ let overview = db.query(
 // What did it retrieve?
 let retrieved = db.query(
     &Query::new()
-        .with_expression(ExpressionFilter::Contains("decision keyword"))
+        .with_expression(ExpressionFilter::Contains("decision keyword".to_string()))
         .with_explanation()
 )?;
 
@@ -673,13 +771,13 @@ let retrieved = db.query(
 let related = db.query(
     &Query::new()
         .with_meaning(topic_embedding, Some(0.6))
-        .with_context(ContextFilter::PathExists("/decision_factor"))
+        .with_context(ContextFilter::PathExists("/decision_factor".to_string()))
 )?;
 
 // When were these memories created?
 let timeline = db.query(
     &Query::new()
-        .with_context(ContextFilter::PathEquals("/topic", json!("the topic")))
+        .with_context(ContextFilter::PathEquals("/topic".to_string(), json!("the topic")))
         .with_temporal(TemporalFilter::CreatedBetween(start, end))
 )?;
 ```
@@ -841,6 +939,49 @@ impl Query {
 }
 ```
 
+Relations and advanced vector options are set on the struct:
+
+```rust
+let query = Query {
+    relations: Some(RelationFilter::DirectlyRelatedTo(entry_id)),
+    ..Query::new()
+};
+
+let query = Query {
+    meaning: Some(MeaningFilter {
+        vector,
+        threshold: Some(0.8),
+        top_k: Some(5),
+    }),
+    ..Query::new()
+};
+```
+
+### Filters
+
+```rust
+pub struct MeaningFilter {
+    pub vector: Vec<f32>,
+    pub threshold: Option<f32>,
+    pub top_k: Option<usize>,
+}
+
+pub enum RelationFilter {
+    DirectlyRelatedTo(Uuid),
+    WithinDistance { from: Uuid, max_hops: usize },
+    HasRelations,
+    NoRelations,
+}
+
+pub enum TemporalFilter {
+    CreatedAfter(DateTime<Utc>),
+    CreatedBefore(DateTime<Utc>),
+    CreatedBetween(DateTime<Utc>, DateTime<Utc>),
+    UpdatedAfter(DateTime<Utc>),
+    UpdatedBefore(DateTime<Utc>),
+}
+```
+
 ### QueryResult
 
 ```rust
@@ -917,6 +1058,16 @@ cargo bench  # (Coming soon)
 - [ ] Monitoring and observability
 
 ---
+
+## Data Portability
+
+ContextDB is an embedded SQLite file plus JSON export/import:
+
+- **Database file**: copy the `.db` file anywhere and open it with `ContextDB::new`.
+- **JSON export**: `contextdb export my.db --output backup.json`
+- **JSON import**: `contextdb import my.db backup.json`
+
+The JSON format is a list of full `Entry` objects, including IDs and timestamps, so round-tripping preserves provenance.
 
 ## Contributing
 
@@ -1069,6 +1220,22 @@ db.delete(entry_id)?;
 ```
 
 Note: Deleting an entry also removes its relations from the graph.
+
+### How do I query relations?
+
+Relations are part of the query struct:
+
+```rust
+let query = Query {
+    relations: Some(RelationFilter::WithinDistance {
+        from: entry_id,
+        max_hops: 2,
+    }),
+    ..Query::new()
+};
+
+let results = db.query(&query)?;
+```
 
 ### Is there a size limit?
 

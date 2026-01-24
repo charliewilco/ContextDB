@@ -7,10 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Expanded documentation across README, ARCHITECTURE, CONCEPTS, and EMBEDDINGS
+- New examples: relations, lifecycle, and advanced query construction
+
+### Fixed
+- Documentation accuracy for update/delete and query construction
+
 ### Planned
 - HNSW index for approximate nearest neighbor search
 - Batch insertion API
-- Update and delete operations
 - GraphQL API
 - HTTP server mode
 - Query language parser
@@ -32,6 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - In-memory and file-backed database options
 - Cosine similarity calculation
 - Query result explanations
+- Update and delete operations
 - Comprehensive test suite
 - Demo example showcasing all features
 - Documentation (README, CONCEPTS, CONTRIBUTING)
@@ -44,7 +51,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Known Limitations
 - No HNSW index (linear scan for vector search)
-- Insert-only (no updates or deletes)
 - Single-threaded query execution
 - Not optimized for > 100k entries
 

@@ -68,7 +68,7 @@ Query::new()
 
 ```rust
 Query::new()
-    .with_expression(ExpressionFilter::Contains("keyword"))
+    .with_expression(ExpressionFilter::Contains("keyword".to_string()))
 ```
 
 **Use case**: Human inspection, debugging  
@@ -79,7 +79,7 @@ Query::new()
 
 ```rust
 Query::new()
-    .with_context(ContextFilter::PathEquals("/category", value))
+    .with_context(ContextFilter::PathEquals("/category".to_string(), value))
 ```
 
 **Use case**: Filtering by domain-specific attributes  
@@ -120,10 +120,10 @@ The power comes from **composing** these modalities:
 //  that are similar to this query, with high confidence"
 Query::new()
     .with_meaning(embedding, Some(0.8))              // Semantic
-    .with_expression(ExpressionFilter::Contains("onion"))  // Textual
+    .with_expression(ExpressionFilter::Contains("onion".to_string()))  // Textual
     .with_context(ContextFilter::And(vec![          // Structured
-        PathEquals("/category", json!("dietary")),
-        PathEquals("/confidence", json!("high"))
+        PathEquals("/category".to_string(), json!("dietary")),
+        PathEquals("/confidence".to_string(), json!("high"))
     ]))
     .with_temporal(CreatedAfter(last_week))         // Temporal
     .with_explanation()                             // Explainability
@@ -153,6 +153,29 @@ When `.with_explanation()` is enabled, ContextDB tracks which filters matched an
 
 This is **not post-hoc analysis** - it's part of the query execution.
 
+## The Accountability Loop
+
+ContextDB is designed for systems where humans and LLMs share memory:
+
+1. **Capture**: Store the raw expression a human would recognize.
+2. **Embed**: Store semantic meaning for machine retrieval.
+3. **Retrieve**: Use semantic or structured queries depending on the actor.
+4. **Explain**: Provide evidence for why something was retrieved.
+5. **Correct**: Humans can update or delete entries when the memory is wrong.
+
+This loop turns "black box memory" into something inspectable and maintainable.
+
+## Memory Lifecycle
+
+Entries are not immutable facts. They evolve:
+
+- **Create**: Insert a new entry with meaning + expression.
+- **Update**: Revise expression or context as reality changes.
+- **Relate**: Connect entries to form context chains.
+- **Retire**: Delete or archive stale entries when they no longer apply.
+
+This is a better match for long-lived assistants than append-only vector stores.
+
 ## Schema Flexibility with Query Safety
 
 The `context` field is schema-less JSON:
@@ -170,8 +193,8 @@ But queries are **type-safe** and **composable**:
 
 ```rust
 ContextFilter::And(vec![
-    PathEquals("/category", json!("dietary")),
-    PathContains("/tags", json!("important"))
+    PathEquals("/category".to_string(), json!("dietary")),
+    PathContains("/tags".to_string(), json!("important"))
 ])
 ```
 
@@ -196,6 +219,19 @@ This means:
 - Every entry knows **when** it was created (temporal provenance)
 - Every entry can link to **related** entries (context graph)
 - Every entry exists in **semantic space** (meaning) and **linguistic space** (expression)
+
+## Relations as Context Graphs
+
+Relations let you model chains like "preference → reason → source":
+
+```
+Preference entry ──→ Conversation note ──→ External source
+```
+
+Because relations are first-class, you can ask:
+- "What is directly related to this preference?"
+- "What memories are within two hops of this incident?"
+- "What entries have no relations (orphaned facts)?"
 
 ## Use Case: Dietary Preferences Example
 
@@ -225,7 +261,7 @@ When an LLM needs to check dietary restrictions:
 ```rust
 db.query(&Query::new()
     .with_meaning(conversation_embedding, Some(0.7))
-    .with_context(PathEquals("/category", json!("dietary")))
+    .with_context(PathEquals("/category".to_string(), json!("dietary")))
     .with_limit(5)
 )
 ```
@@ -238,8 +274,8 @@ When a developer debugs "why didn't it order onions?":
 
 ```rust
 db.query(&Query::new()
-    .with_expression(ExpressionFilter::Contains("onion"))
-    .with_context(PathEquals("/category", json!("dietary")))
+    .with_expression(ExpressionFilter::Contains("onion".to_string()))
+    .with_context(PathEquals("/category".to_string(), json!("dietary")))
 )
 ```
 
@@ -253,8 +289,8 @@ When you want to understand patterns:
 ```rust
 db.query(&Query::new()
     .with_context(ContextFilter::And(vec![
-        PathEquals("/category", json!("dietary")),
-        PathEquals("/specificity", json!("item-level"))
+        PathEquals("/category".to_string(), json!("dietary")),
+        PathEquals("/specificity".to_string(), json!("item-level"))
     ]))
     .with_temporal(CreatedAfter(last_month))
 )

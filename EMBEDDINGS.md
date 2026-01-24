@@ -24,10 +24,12 @@ cargo add tokio --features full
 
 ```rust
 use async_openai::{types::CreateEmbeddingRequestArgs, Client};
+use contextdb::{ContextDB, Entry};
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let client = Client::new();
+    let mut db = ContextDB::in_memory()?;
     
     let request = CreateEmbeddingRequestArgs::default()
         .model("text-embedding-3-small")
@@ -41,6 +43,8 @@ async fn main() {
     // Use with ContextDB
     let entry = Entry::new(embedding.clone(), "User doesn't like red onions".to_string());
     db.insert(&entry)?;
+
+    Ok(())
 }
 ```
 
@@ -175,6 +179,7 @@ if __name__ == '__main__':
 
 ```rust
 // Rust client
+use contextdb::{ContextDB, Entry};
 use reqwest::blocking::Client;
 use serde::{Deserialize, Serialize};
 
@@ -201,9 +206,10 @@ fn get_embedding(text: &str) -> Vec<f32> {
 }
 
 fn main() {
+    let mut db = ContextDB::in_memory().unwrap();
     let embedding = get_embedding("User doesn't like red onions");
     let entry = Entry::new(embedding, "User doesn't like red onions".to_string());
-    db.insert(&entry)?;
+    db.insert(&entry).unwrap();
 }
 ```
 
@@ -227,6 +233,31 @@ For **microservices**: REST API service
 | all-mpnet-base-v2 | 768 | Better | Fast | Local, balanced |
 | BGE-large-en | 1024 | Excellent | Medium | Local, high quality |
 
+## Chunking Long Documents
+
+Embeddings work best on focused text. For long documents, chunk and add metadata:
+
+```rust
+let entry = Entry::new(embedding, chunk_text.to_string()).with_context(json!({
+    "source": "handbook.pdf",
+    "chunk_index": 3,
+    "chunk_count": 12,
+    "section": "Incident response",
+}));
+```
+
+Typical chunk sizes:
+- 200–500 tokens for dense retrieval
+- 500–1200 tokens for general RAG
+
+The best size depends on model and use case; validate with retrieval quality tests.
+
+## Model Consistency and Drift
+
+- **Consistency**: All entries in one database should share the same model and dimension.
+- **Drift**: If you upgrade models, store `model` and `version` in `context` so you can
+  filter or migrate entries safely.
+
 ## Tips
 
 ### Consistency is Key
@@ -238,6 +269,7 @@ For **microservices**: REST API service
 let entry1 = Entry::new(openai_embedding, "text1"); // 1536 dims
 let entry2 = Entry::new(miniml_embedding, "text2"); // 384 dims
 // Similarity calculations will be meaningless!
+// (ContextDB returns 0.0 if dimensions differ.)
 
 // ✅ GOOD: Same model for all
 let embedding1 = model.encode("text1");
@@ -297,6 +329,23 @@ let mut embedding = generate_embedding("text");
 normalize(&mut embedding);
 let entry = Entry::new(embedding, "text".to_string());
 ```
+
+### Store Provenance
+
+Record embedding metadata alongside content so you can audit later:
+
+```rust
+let entry = Entry::new(embedding, text.to_string()).with_context(json!({
+    "embedding_model": "text-embedding-3-small",
+    "embedding_dim": 1536,
+    "source": "conversation",
+}));
+```
+
+### Privacy Notes
+
+Embeddings can encode sensitive information. Treat them as sensitive data and apply
+the same retention and access policies you would use for raw text.
 
 ## Full Example
 

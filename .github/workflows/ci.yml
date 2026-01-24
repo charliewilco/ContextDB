@@ -53,7 +53,7 @@ jobs:
         run: cargo build --lib --verbose
 
       - name: Build CLI
-        run: cargo build --bin contextdb --verbose
+        run: cargo build --bin contextdb --features cli --verbose
 
       - name: Run unit tests
         run: cargo test --lib --verbose
@@ -164,7 +164,7 @@ jobs:
           key: ${{ runner.os }}-cargo-release-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Build release binary
-        run: cargo build --release --target ${{ matrix.target }}
+        run: cargo build --release --target ${{ matrix.target }} --bin contextdb --features cli
 
       - name: Test release binary (Unix)
         if: runner.os != 'Windows'

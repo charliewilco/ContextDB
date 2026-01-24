@@ -54,6 +54,9 @@ pub use query::{
 pub use storage::{SqliteStorage, StorageBackend, StorageError, StorageResult};
 pub use types::{cosine_similarity, Entry};
 
+#[cfg(feature = "ffi")]
+pub mod ffi;
+
 use std::path::Path;
 
 /// Main ContextDB interface

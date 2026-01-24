@@ -14,8 +14,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 	older.created_at = Utc::now() - Duration::days(10);
 	older.updated_at = older.created_at;
 
-	let recent = Entry::new(vec![0.12, 0.22, 0.32], "User switched to green tea".to_string())
-		.with_context(json!({"category": "dietary", "confidence": 0.8}));
+	let recent = Entry::new(
+		vec![0.12, 0.22, 0.32],
+		"User switched to green tea".to_string(),
+	)
+	.with_context(json!({"category": "dietary", "confidence": 0.8}));
 
 	let work = Entry::new(vec![0.8, 0.1, 0.1], "User prefers TypeScript".to_string())
 		.with_context(json!({"category": "work"}));

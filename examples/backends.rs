@@ -1,4 +1,4 @@
-use contextdb::{ContextDB, Entry, Query, SqliteStorage, StorageBackend, StorageResult};
+use contextdb::{ContextDB, Entry, Query, SqliteStorage};
 use serde_json::json;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -11,13 +11,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 	// Example 2: Using SQLite (file-based)
 	println!("2. Creating file-based SQLite database");
-	let mut db_file = ContextDB::new("/tmp/contextdb_demo.db")?;
+	let db_file = ContextDB::new("/tmp/contextdb_demo.db")?;
 	println!("   Backend: {}\n", db_file.backend_name());
 
 	// Example 3: Using custom backend directly
 	println!("3. Creating database with explicit SQLite backend");
 	let sqlite_backend = SqliteStorage::in_memory()?;
-	let mut db_custom = ContextDB::with_backend(sqlite_backend);
+	let db_custom = ContextDB::with_backend(sqlite_backend);
 	println!("   Backend: {}\n", db_custom.backend_name());
 
 	// Add some data

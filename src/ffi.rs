@@ -4,7 +4,8 @@ use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 use std::ptr;
 
-struct ContextDBHandle {
+#[repr(C)]
+pub struct ContextDBHandle {
 	db: ContextDB,
 }
 
@@ -16,11 +17,12 @@ pub struct ContextDBQueryResult {
 }
 
 thread_local! {
-	static LAST_ERROR: RefCell<Option<CString>> = RefCell::new(None);
+	static LAST_ERROR: RefCell<Option<CString>> = const { RefCell::new(None) };
 }
 
 fn set_last_error(message: impl ToString) {
-	let message = CString::new(message.to_string()).unwrap_or_else(|_| CString::new("unknown error").unwrap());
+	let message = CString::new(message.to_string())
+		.unwrap_or_else(|_| CString::new("unknown error").unwrap());
 	LAST_ERROR.with(|cell| {
 		*cell.borrow_mut() = Some(message);
 	});
@@ -55,13 +57,15 @@ pub extern "C" fn contextdb_last_error_message() -> *mut c_char {
 }
 
 #[no_mangle]
-pub extern "C" fn contextdb_string_free(ptr: *mut c_char) {
+/// # Safety
+/// `ptr` must be a valid pointer returned by `contextdb_last_error_message` or
+/// other ContextDB FFI functions that allocate C strings, and must not be freed
+/// more than once.
+pub unsafe extern "C" fn contextdb_string_free(ptr: *mut c_char) {
 	if ptr.is_null() {
 		return;
 	}
-	unsafe {
-		drop(CString::from_raw(ptr));
-	}
+	drop(CString::from_raw(ptr));
 }
 
 #[no_mangle]
@@ -92,17 +96,22 @@ pub extern "C" fn contextdb_open(path: *const c_char) -> *mut ContextDBHandle {
 }
 
 #[no_mangle]
-pub extern "C" fn contextdb_close(handle: *mut ContextDBHandle) {
+/// # Safety
+/// `handle` must be a valid pointer returned by `contextdb_open` and must not be
+/// used after it is closed.
+pub unsafe extern "C" fn contextdb_close(handle: *mut ContextDBHandle) {
 	if handle.is_null() {
 		return;
 	}
-	unsafe {
-		drop(Box::from_raw(handle));
-	}
+	drop(Box::from_raw(handle));
 }
 
 #[no_mangle]
-pub extern "C" fn contextdb_insert(
+/// # Safety
+/// `handle` must be a valid pointer returned by `contextdb_open`.
+/// If `meaning_len` is greater than zero, `meaning_ptr` must be a valid pointer
+/// to an array of `meaning_len` `f32` values.
+pub unsafe extern "C" fn contextdb_insert(
 	handle: *mut ContextDBHandle,
 	expression: *const c_char,
 	meaning_ptr: *const f32,
@@ -131,8 +140,8 @@ pub extern "C" fn contextdb_insert(
 		unsafe { std::slice::from_raw_parts(meaning_ptr, meaning_len) }.to_vec()
 	};
 
-	let mut entry = Entry::new(meaning, expression);
-	match unsafe { &mut *handle }.db.insert(&mut entry) {
+	let entry = Entry::new(meaning, expression);
+	match (&mut *handle).db.insert(&entry) {
 		Ok(()) => {
 			clear_last_error();
 			true
@@ -145,7 +154,13 @@ pub extern "C" fn contextdb_insert(
 }
 
 #[no_mangle]
-pub extern "C" fn contextdb_count(handle: *const ContextDBHandle, out_count: *mut usize) -> bool {
+/// # Safety
+/// `handle` must be a valid pointer returned by `contextdb_open`.
+/// `out_count` must be a valid, writable pointer to a `usize`.
+pub unsafe extern "C" fn contextdb_count(
+	handle: *const ContextDBHandle,
+	out_count: *mut usize,
+) -> bool {
 	if handle.is_null() {
 		set_last_error("handle was null");
 		return false;
@@ -155,11 +170,9 @@ pub extern "C" fn contextdb_count(handle: *const ContextDBHandle, out_count: *mu
 		return false;
 	}
 
-	match unsafe { &*handle }.db.count() {
+	match (&*handle).db.count() {
 		Ok(count) => {
-			unsafe {
-				*out_count = count;
-			}
+			*out_count = count;
 			clear_last_error();
 			true
 		}
@@ -171,7 +184,12 @@ pub extern "C" fn contextdb_count(handle: *const ContextDBHandle, out_count: *mu
 }
 
 #[no_mangle]
-pub extern "C" fn contextdb_query_meaning(
+/// # Safety
+/// `handle` must be a valid pointer returned by `contextdb_open`.
+/// If `meaning_len` is greater than zero, `meaning_ptr` must be a valid pointer
+/// to an array of `meaning_len` `f32` values.
+/// `out_len` must be a valid, writable pointer to a `usize`.
+pub unsafe extern "C" fn contextdb_query_meaning(
 	handle: *const ContextDBHandle,
 	meaning_ptr: *const f32,
 	meaning_len: usize,
@@ -195,16 +213,20 @@ pub extern "C" fn contextdb_query_meaning(
 	let meaning = if meaning_len == 0 {
 		Vec::new()
 	} else {
-		unsafe { std::slice::from_raw_parts(meaning_ptr, meaning_len) }.to_vec()
+		std::slice::from_raw_parts(meaning_ptr, meaning_len).to_vec()
 	};
 
-	let threshold = if threshold < 0.0 { None } else { Some(threshold) };
+	let threshold = if threshold < 0.0 {
+		None
+	} else {
+		Some(threshold)
+	};
 	let mut query = Query::new().with_meaning(meaning, threshold);
 	if limit > 0 {
 		query = query.with_limit(limit);
 	}
 
-	let results = match unsafe { &*handle }.db.query(&query) {
+	let results = match (&*handle).db.query(&query) {
 		Ok(results) => results,
 		Err(err) => {
 			set_last_error(err.to_string());
@@ -212,7 +234,7 @@ pub extern "C" fn contextdb_query_meaning(
 		}
 	};
 
-	let mut out = Vec::with_capacity(results.len());
+	let mut out: Vec<ContextDBQueryResult> = Vec::with_capacity(results.len());
 	for result in results {
 		let expression = match cstring_from_string(result.entry.expression, "expression") {
 			Ok(value) => value.into_raw(),
@@ -239,15 +261,17 @@ pub extern "C" fn contextdb_query_meaning(
 	let ptr = boxed.as_mut_ptr();
 	std::mem::forget(boxed);
 
-	unsafe {
-		*out_len = len;
-	}
+	*out_len = len;
 	clear_last_error();
 	ptr
 }
 
 #[no_mangle]
-pub extern "C" fn contextdb_query_expression_contains(
+/// # Safety
+/// `handle` must be a valid pointer returned by `contextdb_open`.
+/// `expression` must be a valid, null-terminated C string.
+/// `out_len` must be a valid, writable pointer to a `usize`.
+pub unsafe extern "C" fn contextdb_query_expression_contains(
 	handle: *const ContextDBHandle,
 	expression: *const c_char,
 	limit: usize,
@@ -275,7 +299,7 @@ pub extern "C" fn contextdb_query_expression_contains(
 		query = query.with_limit(limit);
 	}
 
-	let results = match unsafe { &*handle }.db.query(&query) {
+	let results = match (&*handle).db.query(&query) {
 		Ok(results) => results,
 		Err(err) => {
 			set_last_error(err.to_string());
@@ -283,7 +307,7 @@ pub extern "C" fn contextdb_query_expression_contains(
 		}
 	};
 
-	let mut out = Vec::with_capacity(results.len());
+	let mut out: Vec<ContextDBQueryResult> = Vec::with_capacity(results.len());
 	for result in results {
 		let expression = match cstring_from_string(result.entry.expression, "expression") {
 			Ok(value) => value.into_raw(),
@@ -310,24 +334,27 @@ pub extern "C" fn contextdb_query_expression_contains(
 	let ptr = boxed.as_mut_ptr();
 	std::mem::forget(boxed);
 
-	unsafe {
-		*out_len = len;
-	}
+	*out_len = len;
 	clear_last_error();
 	ptr
 }
 
 #[no_mangle]
-pub extern "C" fn contextdb_query_results_free(results: *mut ContextDBQueryResult, len: usize) {
+/// # Safety
+/// `results` must be a valid pointer returned by a query function and `len`
+/// must match the length provided by that function. The pointer must not be
+/// freed more than once.
+pub unsafe extern "C" fn contextdb_query_results_free(
+	results: *mut ContextDBQueryResult,
+	len: usize,
+) {
 	if results.is_null() {
 		return;
 	}
-	unsafe {
-		let slice = std::slice::from_raw_parts_mut(results, len);
-		for item in slice.iter_mut() {
-			contextdb_string_free(item.expression);
-			item.expression = ptr::null_mut();
-		}
-		drop(Box::from_raw(slice as *mut [ContextDBQueryResult]));
+	let slice = std::slice::from_raw_parts_mut(results, len);
+	for item in slice.iter_mut() {
+		contextdb_string_free(item.expression);
+		item.expression = ptr::null_mut();
 	}
+	drop(Box::from_raw(slice as *mut [ContextDBQueryResult]));
 }

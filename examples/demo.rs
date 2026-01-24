@@ -1,5 +1,4 @@
-use chrono::Utc;
-use contextdb::{ContextDB, ContextFilter, Entry, ExpressionFilter, Query, TemporalFilter};
+use contextdb::{ContextDB, ContextFilter, Entry, ExpressionFilter, Query};
 use serde_json::json;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {

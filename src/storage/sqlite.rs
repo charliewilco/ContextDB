@@ -718,7 +718,7 @@ mod bincode {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use crate::query::{MeaningFilter, RelationFilter};
+	use crate::query::{ContextFilter, MeaningFilter, RelationFilter, TemporalFilter};
 	use chrono::TimeZone;
 	use std::collections::HashSet;
 
@@ -1625,6 +1625,97 @@ mod tests {
 		let explanation = results[0].explanation.as_ref().unwrap();
 		assert!(explanation.contains("Semantic similarity"));
 		assert!(explanation.contains("expression filter"));
+	}
+
+	#[test]
+	fn test_query_with_invalid_regex_returns_error() {
+		let mut storage = create_test_storage();
+		storage
+			.insert(&create_test_entry(vec![0.1], "Test"))
+			.unwrap();
+
+		let query = Query::new().with_expression(ExpressionFilter::Matches("[".to_string()));
+		let result = storage.query(&query);
+
+		match result {
+			Err(StorageError::Database(message)) => {
+				assert!(message.contains("Invalid regex"));
+			}
+			_ => panic!("Expected invalid regex error"),
+		}
+	}
+
+	#[test]
+	fn test_query_within_distance_zero_hops() {
+		let mut storage = create_test_storage();
+		let entry1 = create_test_entry(vec![0.1], "Entry 1");
+		let entry2 = create_test_entry(vec![0.2], "Entry 2");
+
+		storage.insert(&entry1).unwrap();
+		storage.insert(&entry2).unwrap();
+
+		let entry1 = entry1.add_relation(entry2.id);
+		storage.update(&entry1).unwrap();
+
+		let query = Query {
+			meaning: None,
+			expression: None,
+			context: None,
+			relations: Some(RelationFilter::WithinDistance {
+				from: entry1.id,
+				max_hops: 0,
+			}),
+			temporal: None,
+			limit: None,
+			explain: false,
+		};
+
+		let results = storage.query(&query).unwrap();
+		assert!(results.is_empty());
+	}
+
+	#[test]
+	fn test_generate_explanation_includes_all_filters() {
+		let storage = create_test_storage();
+		let entry = create_test_entry(vec![0.1], "Test");
+		let query = Query {
+			meaning: Some(MeaningFilter {
+				vector: vec![0.1],
+				threshold: Some(0.8),
+				top_k: None,
+			}),
+			expression: Some(ExpressionFilter::Contains("test".to_string())),
+			context: Some(ContextFilter::PathExists("/meta".to_string())),
+			relations: Some(RelationFilter::HasRelations),
+			temporal: Some(TemporalFilter::CreatedAfter(Utc::now())),
+			limit: None,
+			explain: true,
+		};
+
+		let explanation = storage.generate_explanation(&entry, &query, Some(0.85));
+
+		assert!(explanation.contains("Semantic similarity"));
+		assert!(explanation.contains("expression filter"));
+		assert!(explanation.contains("context filter"));
+		assert!(explanation.contains("temporal filter"));
+		assert!(explanation.contains("relation filter"));
+	}
+
+	#[test]
+	fn test_bincode_roundtrip() {
+		let vector = vec![0.1_f32, 0.2, 0.3];
+		let encoded = bincode::serialize(&vector).unwrap();
+		let decoded: Vec<f32> = bincode::deserialize(&encoded).unwrap();
+
+		assert_eq!(decoded, vector);
+	}
+
+	#[test]
+	fn test_bincode_deserialize_invalid_bytes() {
+		let bytes = vec![0_u8, 159, 146, 150];
+		let result: Result<Vec<f32>, String> = bincode::deserialize(&bytes);
+
+		assert!(result.is_err());
 	}
 
 	// ==================== Edge Cases ====================

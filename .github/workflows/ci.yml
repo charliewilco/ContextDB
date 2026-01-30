@@ -67,6 +67,9 @@ jobs:
       - name: Run all tests (ffi feature)
         run: cargo test --all-targets --features ffi --verbose
 
+      - name: Run all tests (cli feature)
+        run: cargo test --all-targets --features cli --verbose
+
   lint:
     name: Lint
     runs-on: ubuntu-latest

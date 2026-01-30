@@ -94,7 +94,7 @@ Building LLM applications requires storing and retrieving context/memory. Existi
 
 ### CLI Tool
 
-The easiest way to get started is with the `contextdb` CLI.
+The easiest way to get started is with the `contextdb` CLI. The `contextdb` binary is gated behind the `cli` feature, so enable it when building or installing from Cargo/source.
 
 #### Homebrew (macOS/Linux)
 
@@ -112,7 +112,7 @@ curl -fsSL https://raw.githubusercontent.com/charliewilco/contextdb/main/scripts
 #### Cargo (any platform)
 
 ```bash
-cargo install contextdb
+cargo install contextdb --features cli
 ```
 
 #### From Source
@@ -120,7 +120,9 @@ cargo install contextdb
 ```bash
 git clone https://github.com/charliewilco/contextdb.git
 cd contextdb
-cargo install --path .
+cargo build --features cli
+cargo run --features cli --bin contextdb -- --help
+cargo install --path . --features cli
 ```
 
 ### As a Rust Library

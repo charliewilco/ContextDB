@@ -358,3 +358,40 @@ pub unsafe extern "C" fn contextdb_query_results_free(
 	}
 	drop(Box::from_raw(slice as *mut [ContextDBQueryResult]));
 }
+
+#[cfg(all(test, feature = "ffi"))]
+mod tests {
+	use super::*;
+	use std::ffi::CString;
+
+	#[test]
+	fn test_ffi_round_trip() {
+		let handle = contextdb_open(ptr::null());
+		assert!(!handle.is_null(), "contextdb_open returned null");
+
+		let expression = CString::new("ffi round trip").expect("valid CString");
+		let meaning = [0.25f32, 0.5f32, 0.75f32];
+
+		let inserted = unsafe {
+			contextdb_insert(
+				handle,
+				expression.as_ptr(),
+				meaning.as_ptr(),
+				meaning.len(),
+			)
+		};
+		assert!(inserted, "contextdb_insert failed");
+
+		let mut out_len = 0usize;
+		let results = unsafe {
+			contextdb_query_expression_contains(handle, expression.as_ptr(), 10, &mut out_len)
+		};
+		assert!(!results.is_null(), "contextdb_query_expression_contains returned null");
+		assert!(out_len >= 1, "expected at least one result");
+
+		unsafe {
+			contextdb_query_results_free(results, out_len);
+			contextdb_close(handle);
+		}
+	}
+}

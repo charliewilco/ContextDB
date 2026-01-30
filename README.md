@@ -33,7 +33,8 @@ let results = db.query(&Query::new()
 
 - [Why ContextDB?](#why-contextdb)
 - [Installation](#installation)
-- [Quick Start](#quick-start)
+- [Quickstart](#quickstart)
+- [Rust Quick Start](#rust-quick-start)
 - [Core Concepts](#core-concepts)
 - [Query Language](#query-language)
 - [Entry Lifecycle](#entry-lifecycle)
@@ -146,6 +147,41 @@ contextdb --help
 
 ---
 
+## Quickstart
+
+Get a database created and queried in minutes. Embeddings are user-supplied; the example below uses a tiny 3‑D vector for illustration.
+
+```bash
+# Install the CLI
+cargo install contextdb --features cli
+
+# Create a database
+contextdb init mydata.db
+
+# Insert one entry (via import)
+python - <<'PY'
+import json, uuid, datetime
+now = datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z")
+entry = {
+    "id": str(uuid.uuid4()),
+    "meaning": [0.1, 0.2, 0.3],
+    "expression": "User doesn't like red onions",
+    "context": None,
+    "created_at": now,
+    "updated_at": now,
+    "relations": [],
+}
+with open("entry.json", "w") as f:
+    json.dump([entry], f)
+PY
+contextdb import mydata.db entry.json
+
+# Query by text
+contextdb search mydata.db "onion"
+```
+
+---
+
 ## CLI Usage
 
 The CLI provides a complete interface for working with ContextDB.
@@ -253,7 +289,7 @@ Goodbye!
 
 ---
 
-## Quick Start
+## Rust Quick Start
 
 ### Basic Usage
 
@@ -310,7 +346,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### Run the Demo
 
 ```bash
-cargo run --example demo
+cargo run --features cli --example demo
 ```
 
 This shows:
@@ -324,10 +360,10 @@ This shows:
 ### More Examples
 
 ```bash
-cargo run --example backends
-cargo run --example relations
-cargo run --example lifecycle
-cargo run --example advanced_queries
+cargo run --features cli --example backends
+cargo run --features cli --example relations
+cargo run --features cli --example lifecycle
+cargo run --features cli --example advanced_queries
 ```
 
 Examples cover:
@@ -1099,7 +1135,7 @@ cargo test
 cargo test -- --nocapture
 
 # Run example
-cargo run --example demo
+cargo run --features cli --example demo
 
 # Check formatting
 cargo fmt --check

@@ -391,6 +391,17 @@ mod tests {
 
 		unsafe {
 			contextdb_query_results_free(results, out_len);
+		}
+
+		let mut meaning_len = 0usize;
+		let meaning_results = unsafe {
+			contextdb_query_meaning(handle, meaning.as_ptr(), meaning.len(), 0.0, 10, &mut meaning_len)
+		};
+		assert!(!meaning_results.is_null(), "contextdb_query_meaning returned null");
+		assert!(meaning_len >= 1, "expected at least one meaning result");
+
+		unsafe {
+			contextdb_query_results_free(meaning_results, meaning_len);
 			contextdb_close(handle);
 		}
 	}

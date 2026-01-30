@@ -206,6 +206,20 @@ contextdb delete mydata.db abc123
 contextdb delete mydata.db abc123 --force
 ```
 
+### Sample Dataset
+
+Try the CLI with a small sample dataset:
+
+```bash
+# Import sample data
+contextdb import sample.db examples/sample-data.json
+
+# Explore entries
+contextdb list sample.db
+contextdb search sample.db "proposal"
+contextdb recent sample.db 3
+```
+
 ### Import/Export Format
 
 `contextdb export` writes a JSON array of `Entry` objects. `contextdb import` expects the same format.

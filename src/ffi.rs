@@ -373,12 +373,7 @@ mod tests {
 		let meaning = [0.25f32, 0.5f32, 0.75f32];
 
 		let inserted = unsafe {
-			contextdb_insert(
-				handle,
-				expression.as_ptr(),
-				meaning.as_ptr(),
-				meaning.len(),
-			)
+			contextdb_insert(handle, expression.as_ptr(), meaning.as_ptr(), meaning.len())
 		};
 		assert!(inserted, "contextdb_insert failed");
 
@@ -386,7 +381,10 @@ mod tests {
 		let results = unsafe {
 			contextdb_query_expression_contains(handle, expression.as_ptr(), 10, &mut out_len)
 		};
-		assert!(!results.is_null(), "contextdb_query_expression_contains returned null");
+		assert!(
+			!results.is_null(),
+			"contextdb_query_expression_contains returned null"
+		);
 		assert!(out_len >= 1, "expected at least one result");
 
 		unsafe {
@@ -395,9 +393,19 @@ mod tests {
 
 		let mut meaning_len = 0usize;
 		let meaning_results = unsafe {
-			contextdb_query_meaning(handle, meaning.as_ptr(), meaning.len(), 0.0, 10, &mut meaning_len)
+			contextdb_query_meaning(
+				handle,
+				meaning.as_ptr(),
+				meaning.len(),
+				0.0,
+				10,
+				&mut meaning_len,
+			)
 		};
-		assert!(!meaning_results.is_null(), "contextdb_query_meaning returned null");
+		assert!(
+			!meaning_results.is_null(),
+			"contextdb_query_meaning returned null"
+		);
 		assert!(meaning_len >= 1, "expected at least one meaning result");
 
 		unsafe {

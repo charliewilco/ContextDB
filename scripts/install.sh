@@ -165,11 +165,12 @@ install_from_source() {
     fi
 
     info "Building from source (this may take a few minutes)..."
+    info "Using the 'cli' feature to build the ${BINARY_NAME} binary."
 
     if [[ -n "$version" ]]; then
-        cargo install --git "https://github.com/${REPO}" --tag "v${version}"
+        cargo install --git "https://github.com/${REPO}" --tag "v${version}" --features cli --bin contextdb
     else
-        cargo install --git "https://github.com/${REPO}"
+        cargo install --git "https://github.com/${REPO}" --features cli --bin contextdb
     fi
 
     success "Installed ${BINARY_NAME} via cargo"

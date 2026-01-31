@@ -153,3 +153,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ## Next steps
 - See `cli.md` for full CLI reference.
 - See `embeddings.md` to generate vectors.
+---
+
+| Prev | Next |
+| --- | --- |
+| [iOS](ios.md) | [CLI Guide](cli.md) |

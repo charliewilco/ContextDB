@@ -463,3 +463,8 @@ Query::new()
 
 ## Next steps
 - See `usage.md` for applied patterns.
+---
+
+| Prev | Next |
+| --- | --- |
+| [CLI Guide](cli.md) | [Query Language](query-language.md) |

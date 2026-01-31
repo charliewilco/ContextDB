@@ -438,3 +438,8 @@ For more examples, see the `examples/` directory.
 
 ## Next steps
 - See `query-language.md` for semantic search.
+---
+
+| Prev | Next |
+| --- | --- |
+| [Entry Lifecycle](lifecycle.md) | [Use Cases](usage.md) |

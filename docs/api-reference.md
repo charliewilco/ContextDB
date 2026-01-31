@@ -167,3 +167,8 @@ let results = db.query(
 ## Next steps
 - See `query-language.md` for richer filters.
 - See `usage.md` for real workflows.
+---
+
+| Prev | Next |
+| --- | --- |
+| [Architecture](architecture.md) | [Performance](performance.md) |

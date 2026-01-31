@@ -64,3 +64,8 @@ Building LLM applications requires storing and retrieving context/memory. Existi
 
 ## Next steps
 - See `quickstart.md` to try it.
+---
+
+| Prev | Next |
+| --- | --- |
+| [Docs Index](README.md) | [Installation](installation.md) |

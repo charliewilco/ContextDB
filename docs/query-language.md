@@ -36,3 +36,8 @@ You can freely combine these with `with_expression`, `with_context`, and `with_t
 ## Next steps
 - See `api-reference.md` for types and signatures.
 - See `usage.md` for real patterns.
+---
+
+| Prev | Next |
+| --- | --- |
+| [Core Concepts](concepts.md) | [Glossary](glossary.md) |

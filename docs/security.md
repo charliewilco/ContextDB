@@ -46,3 +46,8 @@ Embeddings can encode sensitive content. Do not assume they are safe to share. A
 ## Next steps
 - See `data-portability.md` for export/import hygiene.
 - See `schema.md` to understand what is stored.
+---
+
+| Prev | Next |
+| --- | --- |
+| [Data Schema](schema.md) | [FAQ](faq.md) |

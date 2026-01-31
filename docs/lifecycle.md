@@ -15,3 +15,8 @@ No examples yet.
 
 ## Next steps
 - See `usage.md` for real workflows.
+---
+
+| Prev | Next |
+| --- | --- |
+| [Glossary](glossary.md) | [Embeddings Guide](embeddings.md) |

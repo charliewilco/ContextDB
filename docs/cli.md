@@ -202,3 +202,8 @@ contextdb> search coffee
 ## Next steps
 - See `data-portability.md` for backup flows.
 - See `quickstart.md` for a short walkthrough.
+---
+
+| Prev | Next |
+| --- | --- |
+| [Quickstart](quickstart.md) | [Core Concepts](concepts.md) |

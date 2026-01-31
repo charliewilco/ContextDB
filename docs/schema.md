@@ -83,3 +83,8 @@ CREATE INDEX IF NOT EXISTS idx_relations_to ON relations(to_id);
 ## Next steps
 - See `base.md` for GUI inspection.
 - See `data-portability.md` for export/import workflows.
+---
+
+| Prev | Next |
+| --- | --- |
+| [Data Portability](data-portability.md) | [Security & Privacy](security.md) |

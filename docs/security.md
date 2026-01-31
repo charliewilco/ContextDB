@@ -48,5 +48,6 @@ Embeddings can encode sensitive content. Do not assume they are safe to share. A
 - See `schema.md` to understand what is stored.
 ---
 
-Prev: [Data Schema](schema.md)
-Next: [FAQ](faq.md)
+| Prev | Next |
+| --- | --- |
+| [Data Schema](schema.md) | [FAQ](faq.md) |

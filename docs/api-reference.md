@@ -169,5 +169,6 @@ let results = db.query(
 - See `usage.md` for real workflows.
 ---
 
-Prev: [Architecture](architecture.md)
-Next: [Performance](performance.md)
+| Prev | Next |
+| --- | --- |
+| [Architecture](architecture.md) | [Performance](performance.md) |

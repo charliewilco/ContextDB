@@ -17,5 +17,6 @@ No examples yet.
 - Open an issue if you want to help.
 ---
 
-Prev: [Performance](performance.md)
-Next: [Data Portability](data-portability.md)
+| Prev | Next |
+| --- | --- |
+| [Performance](performance.md) | [Data Portability](data-portability.md) |

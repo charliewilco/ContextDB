@@ -17,5 +17,6 @@ No examples yet.
 - See `usage.md` for real workflows.
 ---
 
-Prev: [Glossary](glossary.md)
-Next: [Embeddings Guide](embeddings.md)
+| Prev | Next |
+| --- | --- |
+| [Glossary](glossary.md) | [Embeddings Guide](embeddings.md) |

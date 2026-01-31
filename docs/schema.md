@@ -85,5 +85,6 @@ CREATE INDEX IF NOT EXISTS idx_relations_to ON relations(to_id);
 - See `data-portability.md` for export/import workflows.
 ---
 
-Prev: [Data Portability](data-portability.md)
-Next: [Security & Privacy](security.md)
+| Prev | Next |
+| --- | --- |
+| [Data Portability](data-portability.md) | [Security & Privacy](security.md) |

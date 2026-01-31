@@ -155,5 +155,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 - See `embeddings.md` to generate vectors.
 ---
 
-Prev: [iOS](ios.md)
-Next: [CLI Guide](cli.md)
+| Prev | Next |
+| --- | --- |
+| [iOS](ios.md) | [CLI Guide](cli.md) |

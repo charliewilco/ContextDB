@@ -440,5 +440,6 @@ For more examples, see the `examples/` directory.
 - See `query-language.md` for semantic search.
 ---
 
-Prev: [Entry Lifecycle](lifecycle.md)
-Next: [Use Cases](usage.md)
+| Prev | Next |
+| --- | --- |
+| [Entry Lifecycle](lifecycle.md) | [Use Cases](usage.md) |

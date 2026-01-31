@@ -204,5 +204,6 @@ contextdb> search coffee
 - See `quickstart.md` for a short walkthrough.
 ---
 
-Prev: [Quickstart](quickstart.md)
-Next: [Core Concepts](concepts.md)
+| Prev | Next |
+| --- | --- |
+| [Quickstart](quickstart.md) | [Core Concepts](concepts.md) |

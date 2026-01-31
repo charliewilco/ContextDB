@@ -38,5 +38,6 @@ You can freely combine these with `with_expression`, `with_context`, and `with_t
 - See `usage.md` for real patterns.
 ---
 
-Prev: [Core Concepts](concepts.md)
-Next: [Glossary](glossary.md)
+| Prev | Next |
+| --- | --- |
+| [Core Concepts](concepts.md) | [Glossary](glossary.md) |

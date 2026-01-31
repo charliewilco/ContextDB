@@ -45,4 +45,6 @@ A map of the documentation set and where to start.
 - Start with `why.md`, then `quickstart.md`.
 ---
 
-Next: [Why ContextDB?](why.md)
+| Prev | Next |
+| --- | --- |
+| — | [Why ContextDB?](why.md) |

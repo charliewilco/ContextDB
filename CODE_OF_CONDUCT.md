@@ -128,5 +128,6 @@ https://www.contributor-covenant.org/faq. Translations are available at
 https://www.contributor-covenant.org/translations.
 ---
 
-Prev: [Contributing](CONTRIBUTING.md)
-Next: [License](LICENSE)
+| Prev | Next |
+| --- | --- |
+| [Contributing](CONTRIBUTING.md) | [License](LICENSE) |

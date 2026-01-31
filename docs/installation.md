@@ -58,5 +58,6 @@ contextdb --help
 - Continue with `quickstart.md`.
 ---
 
-Prev: [Why ContextDB?](why.md)
-Next: [iOS](ios.md)
+| Prev | Next |
+| --- | --- |
+| [Why ContextDB?](why.md) | [iOS](ios.md) |

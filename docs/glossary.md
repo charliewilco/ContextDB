@@ -42,5 +42,6 @@ Short definitions of core ContextDB terms.
 - See `query-language.md` for filter usage.
 ---
 
-Prev: [Query Language](query-language.md)
-Next: [Entry Lifecycle](lifecycle.md)
+| Prev | Next |
+| --- | --- |
+| [Query Language](query-language.md) | [Entry Lifecycle](lifecycle.md) |

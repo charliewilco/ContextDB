@@ -146,5 +146,6 @@ contextdb_close(db)
 - See `api-reference.md` for core types.
 ---
 
-Prev: [Installation](installation.md)
-Next: [Quickstart](quickstart.md)
+| Prev | Next |
+| --- | --- |
+| [Installation](installation.md) | [Quickstart](quickstart.md) |

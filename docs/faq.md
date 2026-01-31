@@ -17,5 +17,6 @@ No examples yet.
 - See `quickstart.md` to get hands-on.
 ---
 
-Prev: [Security & Privacy](security.md)
-Next: [Contributing](../CONTRIBUTING.md)
+| Prev | Next |
+| --- | --- |
+| [Security & Privacy](security.md) | [Contributing](../CONTRIBUTING.md) |

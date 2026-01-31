@@ -104,5 +104,6 @@ No examples yet.
 - See `query-language.md` for advanced filtering.
 ---
 
-Prev: [Embeddings Guide](embeddings.md)
-Next: [Architecture](architecture.md)
+| Prev | Next |
+| --- | --- |
+| [Embeddings Guide](embeddings.md) | [Architecture](architecture.md) |

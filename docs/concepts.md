@@ -465,5 +465,6 @@ Query::new()
 - See `usage.md` for applied patterns.
 ---
 
-Prev: [CLI Guide](cli.md)
-Next: [Query Language](query-language.md)
+| Prev | Next |
+| --- | --- |
+| [CLI Guide](cli.md) | [Query Language](query-language.md) |

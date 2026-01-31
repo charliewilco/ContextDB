@@ -1,18 +1,15 @@
 ![](.github/header.png)
 
-<center>
-    <h1>ContextDB</h1>
-    <small>(pre-alpha)</small>
-    <br />
-</center>
 
-<center>
+# ContextDB
+
+> [!WARNING]
+> This is currently in pre-alpha. Should not be used in production.
 
 [![Rust](https://img.shields.io/badge/rust-1.75%2B-orange.svg)](https://www.rust-lang.org/)
 [![CI](https://github.com/charliewilco/contextdb/actions/workflows/ci.yml/badge.svg)](https://github.com/charliewilco/contextdb/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-</center>
 
 **A novel database for semantic data with human accountability**
 

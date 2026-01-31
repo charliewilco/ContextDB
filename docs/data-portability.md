@@ -1,12 +1,12 @@
 # Data Portability
 
-ContextDB is an embedded SQLite file plus JSON export/import. This means you can move data around with plain files.
+## Overview
+Move databases and data between environments.
 
-## When to use this guide
+## When to use
+- You need backups or migrations.
 
-- You need backups or migrations between environments.
-- You want to inspect or version data outside of ContextDB.
-- You are troubleshooting import/export issues.
+## Examples
 
 ## What is portable
 
@@ -27,7 +27,8 @@ contextdb init restored.db
 contextdb import restored.db backup.json
 ```
 
-## Common pitfalls
+## Pitfalls
+- `import` expects a JSON array.
 
-- `contextdb import` expects a JSON array, not a single object.
-- If you edit JSON by hand, keep timestamps in RFC3339 format.
+## Next steps
+- See `cli.md` for export/import commands.

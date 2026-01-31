@@ -1,6 +1,13 @@
 # Installation
 
-This guide covers the main ways to install ContextDB. Pick the option that matches your environment and preferences.
+## Overview
+Install ContextDB via Homebrew, script, Cargo, or source.
+
+## When to use
+- You are setting up a new environment.
+- You want a reproducible install method.
+
+## Examples
 
 ## When to use which option
 
@@ -43,13 +50,9 @@ contextdb --version
 contextdb --help
 ```
 
-## Notes and tips
+## Pitfalls
+- The CLI requires the `cli` feature when building from source or Cargo.
 
-- The `contextdb` CLI is gated behind the `cli` feature when building from source or installing via Cargo.
-- The Rust library can be used directly without the CLI.
-
-```rust
-use contextdb::ContextDB;
-
-let mut db = ContextDB::in_memory()?;
-```
+## Next steps
+- Run `contextdb --help` to verify.
+- Continue with `quickstart.md`.

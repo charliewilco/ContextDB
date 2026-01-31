@@ -1,10 +1,18 @@
 ![](.github/header.png)
 
-# ContextDB
+<center>
+    <h1>ContextDB</h1>
+    <small>(pre-alpha)</small>
+    <br />
+</center>
+
+<center>
 
 [![Rust](https://img.shields.io/badge/rust-1.75%2B-orange.svg)](https://www.rust-lang.org/)
 [![CI](https://github.com/charliewilco/contextdb/actions/workflows/ci.yml/badge.svg)](https://github.com/charliewilco/contextdb/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
+</center>
 
 **A novel database for semantic data with human accountability**
 
@@ -15,8 +23,10 @@ ContextDB is an embedded database designed for LLM-powered applications that nee
 - [Installation](./docs/installation.md)
     - [iOS](./docs/ios.md)
 - [Quickstart](./docs/quickstart.md)
+- [CLI Guide](./docs/cli.md)
 - [Core Concepts](./docs/concepts.md)
 - [Query Language](./docs/query-language.md)
+- [Glossary](./docs/glossary.md)
 - [Entry Lifecycle](./docs/lifecycle.md)
 - [Embeddings Guide](./docs/embeddings.md)
 - [Use Cases](./docs/usage.md)
@@ -25,9 +35,10 @@ ContextDB is an embedded database designed for LLM-powered applications that nee
 - [Performance](./docs/performance.md)
 - [Roadmap](./docs/roadmap.md)
 - [Data Portability](./docs/data-portability.md)
-- [Contributing](./CONTRIBUTING.md)
-- [License](./LICENSE)
 - [FAQ](./docs/faq.md)
+- [Contributing](./CONTRIBUTING.md)
+- [Code of Conduct](./CODE_OF_CONDUCT.md)
+- [License](./LICENSE)
 
 
 ## Acknowledgments

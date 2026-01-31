@@ -1,14 +1,12 @@
 # Getting Started with Embeddings
 
-ContextDB stores vector embeddings but does not generate them. This guide shows how to create embeddings and keep them consistent.
+## Overview
+How to generate and manage embeddings for ContextDB.
 
-## When to use this guide
+## When to use
+- You need to choose models or dimensions.
 
-- You are wiring an embedding model into your app.
-- You need to choose embedding dimensions or providers.
-- You want to understand common embedding pitfalls.
-
-ContextDB stores vector embeddings but doesn't generate them. This guide shows how to create embeddings for your data.
+## Examples
 
 ## What are Embeddings?
 
@@ -435,8 +433,8 @@ serde_json = "1.0"
 
 For more examples, see the `examples/` directory.
 
-## Common pitfalls
+## Pitfalls
+- Mixing embedding sizes in a DB will hurt similarity.
 
-- Mixing models or dimensions in the same database leads to poor similarity results.
-- Normalize or trim text consistently before embedding.
-- Large embeddings increase storage and query time; use only as much as you need.
+## Next steps
+- See `query-language.md` for semantic search.

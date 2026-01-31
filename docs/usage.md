@@ -1,170 +1,104 @@
 # Usage
 
-Real-world usage patterns and example workflows.
+## Overview
+Real-world usage patterns and workflows.
 
-## When to use this guide
+## When to use
+- You want practical recipes.
+- You are designing memory workflows.
 
-- You want practical patterns beyond the quickstart.
-- You are designing a memory or retrieval workflow.
-- You want examples to adapt for your app.
+## Examples
 
-### 1. LLM Memory Systems
+## Cookbook
 
-**Problem**: LLMs need to maintain user context across sessions
+### User preference store
 
-**Solution**: Store preferences, facts, and conversation history in ContextDB
+Store durable user preferences that should survive sessions.
 
 ```rust
-// Store user preference
-let pref = Entry::new(
-    embedding_from_llm("dietary preference about gluten"),
-    "User is gluten-free".to_string()
+use contextdb::{ContextDB, Entry, Query, ExpressionFilter};
+use serde_json::json;
+
+let mut db = ContextDB::new("prefs.db")?;
+
+let entry = Entry::new(
+    embedding_from_model("User prefers oat milk"),
+    "User prefers oat milk".to_string(),
 ).with_context(json!({
-    "type": "dietary",
-    "learned_from": "conversation_id_123",
-    "confidence": 0.95
+    "type": "preference",
+    "category": "dietary",
+    "user_id": "user_123"
 }));
 
-db.insert(&pref)?;
+db.insert(&entry)?;
 
-// LLM retrieves relevant context before responding
-let context = db.query(
-    &Query::new()
-        .with_meaning(conversation_embedding, Some(0.7))
-        .with_limit(5)
+// Later: text lookup for quick inspection
+let results = db.query(
+    &Query::new().with_expression(ExpressionFilter::Contains("oat".to_string()))
 )?;
-
-// Feed context to LLM prompt
 ```
 
-### 2. RAG Systems with Explainability
+### Support ticket triage
 
-**Problem**: Can't debug why specific documents were retrieved
-
-**Solution**: Store documents with embeddings, query with explanations
+Store tickets with context for fast similarity and filtering.
 
 ```rust
-// Index document
-let doc = Entry::new(
-    document_embedding,
-    document_text.clone()
+use contextdb::{ContextDB, Entry, Query, MeaningFilter};
+use serde_json::json;
+
+let mut db = ContextDB::new("support.db")?;
+
+let entry = Entry::new(
+    embedding_from_model("Login fails on iOS after update"),
+    "Login fails on iOS after update".to_string(),
 ).with_context(json!({
-    "source": "internal_docs",
-    "author": "engineering",
-    "last_updated": "2026-01-15"
+    "type": "ticket",
+    "priority": "high",
+    "platform": "ios"
 }));
 
-db.insert(&doc)?;
+db.insert(&entry)?;
 
-// Query with explanation
 let results = db.query(
     &Query::new()
-        .with_meaning(query_embedding, Some(0.7))
-        .with_context(ContextFilter::PathEquals("/source".to_string(), json!("internal_docs")))
-        .with_explanation()
+        .with_meaning(embedding_from_model("iOS login problem"), Some(0.7))
+        .with_limit(5)
 )?;
-
-// Show user why documents matched
-for result in results {
-    println!("Retrieved: {}", result.entry.expression);
-    println!("Because: {}", result.explanation.unwrap());
-}
 ```
 
-### 3. Personal AI Assistants
+### Planner memory
 
-**Problem**: Users want transparency into what AI "knows" about them
-
-**Solution**: Provide human-readable memory inspection
+Store tasks and decisions, then retrieve relevant context for planning.
 
 ```rust
-// AI stores learned facts
-let fact = Entry::new(
-    embedding,
-    "User prefers morning meetings".to_string()
+use contextdb::{ContextDB, Entry, Query, ContextFilter};
+use serde_json::json;
+
+let mut db = ContextDB::new("planner.db")?;
+
+let entry = Entry::new(
+    embedding_from_model("Decide sprint scope for Q1"),
+    "Decide sprint scope for Q1".to_string(),
 ).with_context(json!({
-    "category": "scheduling",
-    "learned_at": "2026-01-15T09:30:00Z"
+    "type": "decision",
+    "project": "roadmap",
+    "owner": "alex"
 }));
 
-db.insert(&fact)?;
+db.insert(&entry)?;
 
-// User inspects their memories
-let my_memories = db.query(
+let results = db.query(
     &Query::new()
-        .with_expression(ExpressionFilter::Contains("prefer".to_string()))
-        .with_temporal(TemporalFilter::CreatedAfter(last_month))
-)?;
-
-// Display in UI: "Here's what I know about you..."
-```
-
-### 4. Multi-Agent Systems
-
-**Problem**: Different agents need different views of shared memory
-
-**Solution**: Each agent queries differently
-
-```rust
-// Agent 1 (Planner): Semantic retrieval
-let planning_context = db.query(
-    &Query::new()
-        .with_meaning(task_embedding, Some(0.8))
-        .with_context(ContextFilter::PathEquals("/priority".to_string(), json!("high")))
-)?;
-
-// Agent 2 (Executor): Structured query
-let tasks = db.query(
-    &Query::new()
-        .with_context(ContextFilter::And(vec![
-            ContextFilter::PathEquals("/status".to_string(), json!("pending")),
-            ContextFilter::PathEquals("/assigned_to".to_string(), json!("executor"))
-        ]))
-)?;
-
-// Human supervisor: Natural language inspection
-let overview = db.query(
-    &Query::new()
-        .with_expression(ExpressionFilter::Contains("urgent".to_string()))
-        .with_temporal(TemporalFilter::CreatedAfter(today))
+        .with_context(ContextFilter::PathEquals("/project".to_string(), json!("roadmap")))
+        .with_limit(10)
 )?;
 ```
 
-### 5. Debugging AI Applications
 
-**Problem**: "Why did the AI do that?"
+No examples yet.
 
-**Solution**: Inspect what memories/context it retrieved
+## Pitfalls
+- Mixing domains can reduce retrieval quality.
 
-```rust
-// AI made unexpected decision
-// Developer investigates:
-
-// What did it retrieve?
-let retrieved = db.query(
-    &Query::new()
-        .with_expression(ExpressionFilter::Contains("decision keyword".to_string()))
-        .with_explanation()
-)?;
-
-// What memories exist about this topic?
-let related = db.query(
-    &Query::new()
-        .with_meaning(topic_embedding, Some(0.6))
-        .with_context(ContextFilter::PathExists("/decision_factor".to_string()))
-)?;
-
-// When were these memories created?
-let timeline = db.query(
-    &Query::new()
-        .with_context(ContextFilter::PathEquals("/topic".to_string(), json!("the topic")))
-        .with_temporal(TemporalFilter::CreatedBetween(start, end))
-)?;
-```
-
----
-
-## Common pitfalls
-
-- If you mix domains in one database, your similarity results may become noisy.
-- Store enough context metadata to debug why a result was returned.
+## Next steps
+- See `query-language.md` for advanced filtering.

@@ -1,12 +1,13 @@
 # Quickstart
 
-A friendly walk-through to get ContextDB running quickly. This guide shows both the CLI and Rust library paths.
+## Overview
+A fast, friendly walkthrough to get ContextDB running via CLI or Rust.
 
-## When to use this guide
-
+## When to use
 - You want a working database in minutes.
-- You prefer copy-paste steps over deep explanations.
-- You are okay using small example vectors instead of real embeddings.
+- You prefer copy-paste steps.
+
+## Examples
 
 ## CLI quickstart (5 minutes)
 
@@ -145,14 +146,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-## Common pitfalls
-
-- Embedding vector lengths must match for meaningful similarity results.
-- The CLI import format expects a JSON array, not a single object.
-- If you are using the CLI from source, you must enable the `cli` feature.
+## Pitfalls
+- Example vectors are placeholders; use real embeddings for real results.
+- Import expects a JSON array.
 
 ## Next steps
-
-- `embeddings.md` for generating real embeddings
-- `query-language.md` for richer filters
-- `usage.md` for realistic workflows
+- See `cli.md` for full CLI reference.
+- See `embeddings.md` to generate vectors.

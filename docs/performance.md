@@ -1,12 +1,12 @@
 # Performance
 
-This document summarizes current performance characteristics and trade-offs.
+## Overview
+Current performance characteristics and trade-offs.
 
-## When to use this guide
+## When to use
+- You are sizing a dataset or planning scale.
 
-- You are planning scale or evaluating limits.
-- You need to set expectations for query latency.
-- You are deciding whether to add indexing or batching.
+## Examples
 
 ## Current implementation
 
@@ -38,3 +38,9 @@ This document summarizes current performance characteristics and trade-offs.
 ```bash
 cargo bench  # Coming soon
 ```
+
+## Pitfalls
+- Large datasets will slow linear vector scans.
+
+## Next steps
+- See `roadmap.md` for planned optimizations.

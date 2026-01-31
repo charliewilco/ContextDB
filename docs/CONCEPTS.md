@@ -1,14 +1,12 @@
 # ContextDB Design Concepts
 
-This document explains the design choices behind ContextDB and the mental model for using it well.
+## Overview
+Design ideas and the mental model behind ContextDB.
 
-## When to use this guide
+## When to use
+- You are deciding fit or explaining ContextDB to others.
 
-- You want to understand why ContextDB treats meaning and expression as co-equal.
-- You are explaining ContextDB to teammates or evaluating fit.
-- You want to design schemas and workflows that align with the model.
-
-This document explains the novel architectural decisions behind ContextDB and why it's different from existing vector databases.
+## Examples
 
 ## The Core Innovation: Co-Equal Representations
 
@@ -459,3 +457,9 @@ Query::new()
 ```
 
 ---
+
+## Pitfalls
+- Treating meaning as primary and expression as optional undermines the model.
+
+## Next steps
+- See `usage.md` for applied patterns.

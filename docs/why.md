@@ -1,5 +1,13 @@
 # Why ContextDB?
 
+## Overview
+Why ContextDB exists and when it is the right tool.
+
+## When to use
+- You are evaluating if ContextDB is a fit.
+
+## Examples
+
 ## TL;DR
 
 ContextDB is an embedded database for semantic data that keeps human-readable text and vector meaning as equals. You can inspect what the system knows, not just what it scores.
@@ -50,3 +58,9 @@ Building LLM applications requires storing and retrieving context/memory. Existi
 - ✅ **Flexible** - Schema-less JSON metadata
 - ✅ **Unified** - One query API for semantic + structured + text + temporal
 - ✅ **Type-safe** - Compile-time query validation
+
+## Pitfalls
+- It is not a distributed, large-scale vector system.
+
+## Next steps
+- See `quickstart.md` to try it.

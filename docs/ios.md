@@ -1,13 +1,12 @@
 # Using ContextDB on iOS (FFI)
 
-ContextDB ships a small C FFI layer (feature `ffi`) that you can call from Swift or Objective-C. This guide shows how to build an XCFramework and use it from an iOS app.
+## Overview
+Use ContextDB from iOS via the C FFI layer.
 
-## When to use this guide
+## When to use
+- You are embedding ContextDB in an iOS app.
 
-- You want to embed ContextDB in an iOS app.
-- You are comfortable calling a small C API from Swift.
-
-ContextDB ships a small C FFI layer (feature `ffi`) that you can call from Swift/Obj‑C. This guide shows how to build an XCFramework and use it from an iOS app.
+## Examples
 
 ## 1) Build the static libraries
 
@@ -140,15 +139,8 @@ if let results {
 contextdb_close(db)
 ```
 
-## Notes
+## Pitfalls
+- Always free FFI strings and result buffers.
 
-- Passing `NULL` to `contextdb_open` uses an in‑memory database.
-- `contextdb_query_results_free` frees both the result array and each result’s `expression` string.
-- `contextdb_last_error_message` returns an allocated C string; free it with `contextdb_string_free`.
-- `meaning` vectors must be the same length for meaningful similarity results.
-
-## Common pitfalls
-
-- Remember to free error strings with `contextdb_string_free`.
-- Always free query results with `contextdb_query_results_free`.
-- Do not mix different embedding dimensions inside a single database.
+## Next steps
+- See `api-reference.md` for core types.

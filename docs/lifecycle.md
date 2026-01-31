@@ -1,35 +1,17 @@
 # Entry Lifecycle
 
-This guide shows how to create, update, and delete entries safely.
+## Overview
+Create, update, and delete entries safely.
 
-## When to use this guide
+## When to use
+- You need CRUD workflows or data updates.
 
-- You are building CRUD workflows around ContextDB.
-- You need to update context or relations over time.
+## Examples
 
-Create, update, and delete entries directly through the API:
+No examples yet.
 
-```rust
-use contextdb::{ContextDB, Entry};
-use serde_json::json;
+## Pitfalls
+- Update the latest entry to avoid overwriting newer data.
 
-let mut db = ContextDB::new("memories.db")?;
-
-let entry = Entry::new(vec![0.2, 0.3, 0.4], "Initial note".to_string())
-    .with_context(json!({"category": "note"}));
-db.insert(&entry)?;
-
-// Update the entry in place
-let mut updated = db.get(entry.id)?;
-updated.expression = "Revised note".to_string();
-updated.context = json!({"category": "note", "status": "edited"});
-db.update(&updated)?;
-
-// Delete when no longer needed
-db.delete(entry.id)?;
-```
-
-## Common pitfalls
-
-- Fetch and update the latest entry before writing, to avoid overwriting newer data.
-- Keep `updated_at` consistent by using the provided API rather than manual SQL edits.
+## Next steps
+- See `usage.md` for real workflows.

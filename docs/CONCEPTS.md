@@ -392,3 +392,62 @@ This architecture enables building LLM applications that are:
 - Trustworthy (transparent memory)
 
 The core innovation is recognizing that **meaning and expression are co-equal**, not primary and secondary. Once you see that, the rest of the architecture follows naturally.
+
+# Core Concepts
+
+### Entry: The Fundamental Unit
+
+Every piece of data in ContextDB is an `Entry`:
+
+```rust
+pub struct Entry {
+    pub id: Uuid,                    // Unique identifier
+    pub meaning: Vec<f32>,           // Semantic representation (embedding)
+    pub expression: String,          // Human-readable text
+    pub context: serde_json::Value,  // Flexible metadata
+    pub relations: Vec<Uuid>,        // Links to other entries
+    pub created_at: DateTime<Utc>,   // When created
+    pub updated_at: DateTime<Utc>,   // When modified
+}
+```
+
+**Philosophy**: `meaning` and `expression` are co-equal representations of the same information, not primary/secondary.
+
+### Creating Entries
+
+```rust
+// Minimal entry
+let entry = Entry::new(
+    embedding_vector,
+    "User prefers TypeScript over JavaScript".to_string()
+);
+
+// With metadata
+let entry = Entry::new(embedding, expression)
+    .with_context(json!({
+        "category": "work",
+        "language": "typescript",
+        "confidence": 0.95
+    }));
+
+// With relations
+let entry = Entry::new(embedding, expression)
+    .add_relation(related_entry_id);
+```
+
+### Query: Multi-Modal Retrieval
+
+Queries can combine five orthogonal modalities:
+
+```rust
+Query::new()
+    .with_meaning(vector, threshold)      // Semantic similarity
+    .with_expression(ExpressionFilter)    // Text matching
+    .with_context(ContextFilter)          // Metadata filtering
+    .with_relations(RelationFilter)       // Graph traversal
+    .with_temporal(TemporalFilter)        // Time-based
+    .with_limit(n)                        // Limit results
+    .with_explanation()                   // Include explanations
+```
+
+---

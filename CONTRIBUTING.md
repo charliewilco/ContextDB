@@ -117,7 +117,7 @@ How was this tested?
 
 ## Architecture Overview
 
-See [CONCEPTS.md](CONCEPTS.md) for detailed architecture explanation.
+See [concepts.md](docs/concepts.md) for detailed architecture explanation.
 
 Key components:
 

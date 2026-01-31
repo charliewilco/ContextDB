@@ -24,6 +24,8 @@ A map of the documentation set and where to start.
 - `architecture.md` - System design and storage details
 - `performance.md` - Current performance characteristics and trade-offs
 - `data-portability.md` - Export/import and moving databases around
+- `security.md` - Security and privacy guidance
+- `schema.md` - SQLite tables and JSON shapes
 - `roadmap.md` - Planned improvements and future directions
 - `faq.md` - Common questions and answers
 

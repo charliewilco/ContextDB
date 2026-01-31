@@ -32,6 +32,8 @@ ContextDB is an embedded database designed for LLM-powered applications that nee
 - [Performance](./docs/performance.md)
 - [Roadmap](./docs/roadmap.md)
 - [Data Portability](./docs/data-portability.md)
+- [Data Schema](./docs/schema.md)
+- [Security & Privacy](./docs/security.md)
 - [FAQ](./docs/faq.md)
 - [Contributing](./CONTRIBUTING.md)
 - [Code of Conduct](./CODE_OF_CONDUCT.md)

@@ -102,3 +102,7 @@ No examples yet.
 
 ## Next steps
 - See `query-language.md` for advanced filtering.
+---
+
+Prev: [Embeddings Guide](embeddings.md)
+Next: [Architecture](architecture.md)

@@ -399,3 +399,7 @@ This is the same pattern that makes Prisma so developer-friendly, now available 
 
 ## Next steps
 - See `performance.md` for limits and trade-offs.
+---
+
+Prev: [Use Cases](usage.md)
+Next: [API Reference](api-reference.md)

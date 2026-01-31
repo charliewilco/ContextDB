@@ -44,3 +44,7 @@ cargo bench  # Coming soon
 
 ## Next steps
 - See `roadmap.md` for planned optimizations.
+---
+
+Prev: [API Reference](api-reference.md)
+Next: [Roadmap](roadmap.md)

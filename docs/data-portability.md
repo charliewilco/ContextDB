@@ -32,3 +32,7 @@ contextdb import restored.db backup.json
 
 ## Next steps
 - See `cli.md` for export/import commands.
+---
+
+Prev: [Roadmap](roadmap.md)
+Next: [Data Schema](schema.md)

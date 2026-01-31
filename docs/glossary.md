@@ -40,3 +40,7 @@ Short definitions of core ContextDB terms.
 ## Next steps
 - See `concepts.md` for deeper context.
 - See `query-language.md` for filter usage.
+---
+
+Prev: [Query Language](query-language.md)
+Next: [Entry Lifecycle](lifecycle.md)

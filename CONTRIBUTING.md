@@ -219,8 +219,3 @@ Be respectful, constructive, and collaborative. This is a learning project where
 ## License
 
 By contributing, you agree that your contributions will be licensed under the MIT License.
----
-
-| Prev | Next |
-| --- | --- |
-| [FAQ](docs/faq.md) | [Code of Conduct](CODE_OF_CONDUCT.md) |

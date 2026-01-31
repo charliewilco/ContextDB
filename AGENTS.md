@@ -5,7 +5,7 @@
 - `examples/` contains runnable demos (e.g., `demo.rs`, `backends.rs`).
 - `scripts/` includes helper scripts like `install.sh`.
 - `Formula/` contains the Homebrew formula (`contextdb.rb`).
-- Docs live at the root (`README.md`, `ARCHITECTURE.md`, `CONCEPTS.md`, `EMBEDDINGS.md`, `CHANGELOG.md`).
+- Docs live at the root (`README.md`, `docs/architecture.md`, `docs/concepts.md`, `docs/embeddings.md`, `CHANGELOG.md`).
 
 ## Build, Test, and Development Commands
 - `cargo build` builds the library and CLI locally.
@@ -30,5 +30,5 @@
 - Ensure formatting and linting are clean (`cargo fmt`, `cargo clippy`) and update docs if behavior changes.
 
 ## Architecture References
-- For system design details, see `ARCHITECTURE.md` and `CONCEPTS.md`.
+- For system design details, see `docs/architecture.md` and `docs/concepts.md`.
 - The storage backend is currently SQLite (`src/storage/sqlite.rs`) and vector similarity is linear scan.

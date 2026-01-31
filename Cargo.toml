@@ -50,6 +50,11 @@ ffi = []
 
 [dev-dependencies]
 anyhow = "1.0"
+criterion = "0.5"
+
+[[bench]]
+name = "contextdb_bench"
+harness = false
 
 [profile.release]
 lto = true

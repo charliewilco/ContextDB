@@ -1,5 +1,5 @@
-use criterion::{black_box, criterion_group, criterion_main, BatchSize, Criterion};
 use contextdb::{ContextDB, ContextFilter, Entry, ExpressionFilter, Query};
+use criterion::{black_box, criterion_group, criterion_main, BatchSize, Criterion};
 use serde_json::json;
 
 const DIMENSIONS: usize = 128;
@@ -88,10 +88,8 @@ fn bench_query_expression(c: &mut Criterion) {
 
 fn bench_query_context(c: &mut Criterion) {
 	let db = populate_db(QUERY_COUNT, DIMENSIONS);
-	let query = Query::new().with_context(ContextFilter::PathEquals(
-		"/group".to_string(),
-		json!("a"),
-	));
+	let query =
+		Query::new().with_context(ContextFilter::PathEquals("/group".to_string(), json!("a")));
 
 	c.bench_function("query_context_5k", |b| {
 		b.iter(|| {

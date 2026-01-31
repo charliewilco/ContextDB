@@ -2,6 +2,7 @@
 
 ## Overview
 Use ContextDB from iOS via the C FFI layer.
+If you prefer Swift Package Manager, see [swiftpm.md](swiftpm.md).
 
 ## When to use
 - You are embedding ContextDB in an iOS app.

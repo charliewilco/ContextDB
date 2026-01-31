@@ -1,5 +1,13 @@
 # Query Language
 
+This guide shows how to build queries across meaning (vectors), text, metadata, relations, and time. Use it when you want more control than the quickstart.
+
+## When to use this guide
+
+- You need hybrid queries (vector + text + metadata).
+- You want to understand how filters combine.
+- You need predictable ranking and explanation behavior.
+
 ### 1. Semantic Queries (Vector Similarity)
 
 ```rust
@@ -194,3 +202,9 @@ let query = Query {
 ```
 
 You can freely combine these with `with_expression`, `with_context`, and `with_temporal`.
+
+## Common pitfalls
+
+- Vector length mismatches yield low or zero similarity; keep embedding dimensions consistent.
+- Text filters are case-sensitive by default unless you normalize.
+- If you combine many filters, you can reduce results to zero; start broad, then tighten.

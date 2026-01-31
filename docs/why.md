@@ -1,5 +1,20 @@
 # Why ContextDB?
 
+## TL;DR
+
+ContextDB is an embedded database for semantic data that keeps human-readable text and vector meaning as equals. You can inspect what the system knows, not just what it scores.
+
+## When this is a good fit
+
+- You need a local, embeddable store (no server).
+- You want explainable results and human inspection.
+- You are prototyping LLM memory or retrieval workflows.
+
+## When it is not a good fit (yet)
+
+- You need large-scale vector search or multi-tenant isolation.
+- You require distributed indexing or high write throughput.
+
 ## The Problem
 
 Building LLM applications requires storing and retrieving context/memory. Existing solutions fall short:

@@ -1,16 +1,30 @@
 # Performance
 
-### Current Implementation
+This document summarizes current performance characteristics and trade-offs.
+
+## When to use this guide
+
+- You are planning scale or evaluating limits.
+- You need to set expectations for query latency.
+- You are deciding whether to add indexing or batching.
+
+## Current implementation
 
 - **Storage**: SQLite with bundled library
 - **Vector search**: Linear scan with cosine similarity
-- **Suitable for**: < 100,000 entries
-- **Query latency**: 
-  - Text/metadata queries: < 1ms (indexed)
+- **Suitable for**: under ~100,000 entries (rule of thumb)
+- **Query latency**:
+  - Text/metadata queries: typically < 1ms (indexed)
   - Semantic queries: O(n) - linear in entry count
-  - Hybrid queries: Sum of components
+  - Hybrid queries: sum of component costs
 
-### Optimization Roadmap
+## Practical tips
+
+- Keep embedding dimensions as small as your model allows.
+- Prefer metadata or text filters to narrow the candidate set before vector scoring.
+- Batch inserts when possible to reduce transaction overhead.
+
+## Optimization roadmap
 
 - [ ] HNSW index for approximate nearest neighbor search
 - [ ] Batch insertion API
@@ -19,8 +33,8 @@
 - [ ] Memory-mapped vectors
 - [ ] Persistent vector index
 
-### Benchmarks
+## Benchmarks
 
 ```bash
-cargo bench  # (Coming soon)
+cargo bench  # Coming soon
 ```

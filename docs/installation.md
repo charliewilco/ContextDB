@@ -1,6 +1,13 @@
 # Installation
 
-This guide covers the three main ways to install ContextDB: Homebrew (macOS), the install script, or Cargo.
+This guide covers the main ways to install ContextDB. Pick the option that matches your environment and preferences.
+
+## When to use which option
+
+- Homebrew: best for macOS (and Linuxbrew) users who want upgrades managed by brew.
+- Install script: quick install for macOS or Linux without Rust tooling.
+- Cargo: best if you already use Rust and want reproducible builds.
+- From source: best for contributing or hacking on the codebase.
 
 ## Option A: Homebrew (macOS)
 
@@ -36,10 +43,10 @@ contextdb --version
 contextdb --help
 ```
 
-## Notes
+## Notes and tips
 
 - The `contextdb` CLI is gated behind the `cli` feature when building from source or installing via Cargo.
-- The library can be used directly from Rust without the CLI:
+- The Rust library can be used directly without the CLI.
 
 ```rust
 use contextdb::ContextDB;

@@ -1,5 +1,12 @@
 # Entry Lifecycle
 
+This guide shows how to create, update, and delete entries safely.
+
+## When to use this guide
+
+- You are building CRUD workflows around ContextDB.
+- You need to update context or relations over time.
+
 Create, update, and delete entries directly through the API:
 
 ```rust
@@ -21,3 +28,8 @@ db.update(&updated)?;
 // Delete when no longer needed
 db.delete(entry.id)?;
 ```
+
+## Common pitfalls
+
+- Fetch and update the latest entry before writing, to avoid overwriting newer data.
+- Keep `updated_at` consistent by using the provided API rather than manual SQL edits.

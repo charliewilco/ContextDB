@@ -1,5 +1,12 @@
 # FAQ
 
+Quick answers to common questions. If you do not find what you need, open an issue or start a discussion.
+
+## When to use this guide
+
+- You want a quick yes/no or rule-of-thumb.
+- You are deciding if ContextDB fits your project.
+
 ### Is this production-ready?
 
 **No.** This is a v0.1.0 prototype demonstrating a novel architecture. Use it for:

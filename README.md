@@ -10,13 +10,14 @@
 
 ContextDB is an embedded database designed for LLM-powered applications that need to maintain context and memory. Unlike traditional vector databases where human-readable metadata is an afterthought, ContextDB treats **meaning** (vector embeddings) and **expression** (human-readable text) as co-equal, first-class representations of the same data.
 
+- [Docs Index](./docs/README.md)
 - [Why ContextDB?](./docs/why.md)
 - [Installation](./docs/installation.md)
     - [iOS](./docs/ios.md)
 - [Quickstart](./docs/quickstart.md)
 - [Core Concepts](./docs/concepts.md)
 - [Query Language](./docs/query-language.md)
-- [Entry Lifecycle](./docs/lifecycle)
+- [Entry Lifecycle](./docs/lifecycle.md)
 - [Embeddings Guide](./docs/embeddings.md)
 - [Use Cases](./docs/usage.md)
 - [Architecture](./docs/architecture.md)

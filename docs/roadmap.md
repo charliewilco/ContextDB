@@ -1,5 +1,12 @@
 # Roadmap
 
+This is a rough roadmap. It reflects intent, not a guarantee.
+
+## How to use this guide
+
+- Use it to understand direction and priorities.
+- Open an issue if you want to help with a specific item.
+
 ### v0.2.0 (Next)
 
 - [ ] HNSW index integration

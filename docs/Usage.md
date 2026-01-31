@@ -1,5 +1,13 @@
 # Usage
 
+Real-world usage patterns and example workflows.
+
+## When to use this guide
+
+- You want practical patterns beyond the quickstart.
+- You are designing a memory or retrieval workflow.
+- You want examples to adapt for your app.
+
 ### 1. LLM Memory Systems
 
 **Problem**: LLMs need to maintain user context across sessions
@@ -155,3 +163,8 @@ let timeline = db.query(
 ```
 
 ---
+
+## Common pitfalls
+
+- If you mix domains in one database, your similarity results may become noisy.
+- Store enough context metadata to debug why a result was returned.

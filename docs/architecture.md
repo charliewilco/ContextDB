@@ -1,5 +1,15 @@
 # ContextDB Architecture
 
+## When to use this guide
+
+- You want to understand how storage, query planning, and vector search fit together.
+- You are evaluating a new backend or storage implementation.
+- You are contributing to core internals.
+
+## How to read it
+
+Skim the diagrams first, then jump to the component you care about (storage, query engine, or indexing).
+
 ## Overview
 
 ContextDB uses a trait-based storage abstraction inspired by Prisma's approach - the same API works across SQLite, PostgreSQL, MySQL, or any custom backend you implement.

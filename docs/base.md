@@ -2,6 +2,14 @@
 
 This guide shows how to inspect and lightly manage a ContextDB SQLite file using the Base app.
 
+## When to use this guide
+
+- You want a GUI for quick inspection of data.
+- You need to run ad-hoc SQL against a ContextDB file.
+- You are debugging import/export issues.
+
+This guide shows how to inspect and lightly manage a ContextDB SQLite file using the Base app.
+
 ## 1) Create or locate a ContextDB database
 
 - CLI example:
@@ -85,3 +93,9 @@ Because of macOS sandboxing, Base can only attach databases you have explicitly 
 - The `context` column is JSON stored as text; keep it valid JSON if you edit it.
 - If another app modifies the database while Base is open, use Base’s Refresh menu item to reload visible data. citeturn0search10
 - Base 3 requires macOS 15 (Sequoia) or newer. citeturn0search10
+
+## Common pitfalls
+
+- The `meaning` column is a binary blob; treat it as opaque in the UI.
+- Keep `context` valid JSON if you edit it in place.
+- If another process modifies the DB, use Base's refresh to reload data.

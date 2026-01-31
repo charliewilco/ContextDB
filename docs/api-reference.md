@@ -1,5 +1,13 @@
 # API Reference
 
+This is a compact reference for the public Rust API. For narrative guides, see `quickstart.md`, `usage.md`, and `query-language.md`.
+
+## When to use this guide
+
+- You want method signatures and types in one place.
+- You are wiring ContextDB into an existing Rust codebase.
+- You need to check return types and error behavior.
+
 ### ContextDB
 
 ```rust
@@ -135,3 +143,9 @@ pub struct QueryResult {
 ```
 
 ---
+
+## Notes
+
+- The CLI is behind the `cli` feature flag.
+- The C FFI is behind the `ffi` feature flag.
+- Most methods return `StorageResult<T>`; handle errors explicitly.

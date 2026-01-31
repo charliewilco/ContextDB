@@ -3,6 +3,7 @@
 # ContextDB
 
 [![Rust](https://img.shields.io/badge/rust-1.75%2B-orange.svg)](https://www.rust-lang.org/)
+[![CI](https://github.com/charliewilco/contextdb/actions/workflows/ci.yml/badge.svg)](https://github.com/charliewilco/contextdb/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 **A novel database for semantic data with human accountability**

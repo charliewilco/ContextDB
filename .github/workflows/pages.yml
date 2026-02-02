@@ -27,7 +27,7 @@ jobs:
           tool: zola
 
       - name: Build docs site
-        run: zola build
+        run: zola --config zola.toml build
 
       - name: Configure Pages
         uses: actions/configure-pages@v5

@@ -32,6 +32,7 @@ A map of the documentation set and where to start.
 ## Integrations
 
 - `ios.md` - iOS integration via the C FFI layer
+- `swiftpm.md` - Swift Package distribution (XCFramework)
 - `base.md` - Inspecting ContextDB SQLite files in Base (SQLite)
 
 ## Contributing

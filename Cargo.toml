@@ -51,6 +51,9 @@ ffi = []
 [dev-dependencies]
 anyhow = "1.0"
 criterion = "0.5"
+assert_cmd = "2.0"
+predicates = "3.1"
+tempfile = "3.10"
 
 [[bench]]
 name = "contextdb_bench"

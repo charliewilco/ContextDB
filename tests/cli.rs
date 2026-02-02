@@ -1,5 +1,6 @@
 #![cfg(feature = "cli")]
 
+use assert_cmd::cargo::cargo_bin_cmd;
 use assert_cmd::Command;
 use contextdb::{ContextDB, Entry};
 use predicates::prelude::*;
@@ -12,7 +13,7 @@ fn temp_db_path() -> (TempDir, std::path::PathBuf) {
 }
 
 fn cmd_bin() -> Command {
-	let mut cmd = Command::cargo_bin("contextdb").expect("binary built");
+	let mut cmd = cargo_bin_cmd!("contextdb");
 	cmd.env("NO_COLOR", "1").env("CLICOLOR", "0");
 	cmd
 }

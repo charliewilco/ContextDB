@@ -23,7 +23,8 @@ fn cli_init_creates_db() {
 	let (_temp_dir, db_path) = temp_db_path();
 
 	cmd_bin()
-		.args(["init", db_path.to_str().unwrap()])
+		.arg("init")
+		.arg(&db_path)
 		.assert()
 		.success()
 		.stdout(predicate::str::contains("Created database"));
@@ -40,14 +41,9 @@ fn cli_list_shows_entries_plain() {
 	db.insert(&entry).expect("entry inserted");
 
 	cmd_bin()
-		.args([
-			"list",
-			db_path.to_str().unwrap(),
-			"--limit",
-			"5",
-			"--format",
-			"plain",
-		])
+		.arg("list")
+		.arg(&db_path)
+		.args(["--limit", "5", "--format", "plain"])
 		.assert()
 		.success()
 		.stdout(predicate::str::contains(&entry_id_prefix))
@@ -63,13 +59,10 @@ fn cli_search_finds_entries_json() {
 	db.insert(&entry).expect("entry inserted");
 
 	cmd_bin()
-		.args([
-			"search",
-			db_path.to_str().unwrap(),
-			"onion",
-			"--format",
-			"json",
-		])
+		.arg("search")
+		.arg(&db_path)
+		.arg("onion")
+		.args(["--format", "json"])
 		.assert()
 		.success()
 		.stdout(predicate::str::contains("Searchable onion note"))
@@ -86,7 +79,9 @@ fn cli_show_accepts_partial_id() {
 	db.insert(&entry).expect("entry inserted");
 
 	cmd_bin()
-		.args(["show", db_path.to_str().unwrap(), &entry_prefix])
+		.arg("show")
+		.arg(&db_path)
+		.arg(&entry_prefix)
 		.assert()
 		.success()
 		.stdout(predicate::str::contains("Entry Details"))

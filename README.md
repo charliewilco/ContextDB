@@ -19,6 +19,7 @@ ContextDB is an embedded database designed for LLM-powered applications that nee
 - [Why ContextDB?](./docs/why.md)
 - [Installation](./docs/installation.md)
     - [iOS](./docs/ios.md)
+    - [Swift Package](./docs/swiftpm.md)
 - [Quickstart](./docs/quickstart.md)
 - [CLI Guide](./docs/cli.md)
 - [Core Concepts](./docs/concepts.md)

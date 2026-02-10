@@ -1,2 +1,4 @@
 .claude/settings.*
 /target
+/dist
+.build

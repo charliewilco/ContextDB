@@ -1,0 +1,18 @@
+base_url = "https://charliewilco.github.io/ContextDB"
+compile_sass = false
+build_search_index = true
+
+# Use the docs/ directory as site content.
+content_dir = "docs"
+
+# Keep generated output local and ignored.
+output_dir = "public"
+
+default_language = "en"
+
+[markdown]
+highlight_code = true
+highlight_theme = "base16-ocean-dark"
+
+[extra]
+site_title = "ContextDB Docs"

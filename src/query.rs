@@ -5,6 +5,7 @@ use uuid::Uuid;
 
 /// A unified query that can combine semantic, textual, graph, and temporal operations
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
 pub struct Query {
 	/// Semantic similarity search (vector-based)
 	pub meaning: Option<MeaningFilter>,
@@ -24,8 +25,54 @@ pub struct Query {
 	/// Maximum number of results to return
 	pub limit: Option<usize>,
 
+	/// Number of matching results to skip after ordering
+	pub offset: usize,
+
+	/// Continue after this entry in the ordered result set
+	pub cursor: Option<QueryCursor>,
+
+	/// Ordering for non-semantic queries
+	pub order: QueryOrder,
+
+	/// Optional semantic/lexical score weights for hybrid retrieval
+	pub hybrid_weights: Option<HybridWeights>,
+
 	/// Whether to explain why results matched
 	pub explain: bool,
+}
+
+/// Cursor for continuing a deterministically ordered query
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub struct QueryCursor {
+	/// Last entry returned by the preceding page
+	pub after: Uuid,
+}
+
+/// Weights used to combine semantic and full-text relevance
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+pub struct HybridWeights {
+	/// Weight applied to normalized cosine similarity
+	pub semantic: f32,
+	/// Weight applied to normalized BM25 relevance
+	pub lexical: f32,
+}
+
+/// Deterministic ordering for queries without semantic ranking
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub enum QueryOrder {
+	/// Oldest entries first
+	#[default]
+	CreatedAtAsc,
+	/// Newest entries first
+	CreatedAtDesc,
+	/// Least recently updated entries first
+	UpdatedAtAsc,
+	/// Most recently updated entries first
+	UpdatedAtDesc,
+	/// Expression in ascending Unicode order
+	ExpressionAsc,
+	/// Expression in descending Unicode order
+	ExpressionDesc,
 }
 
 /// Semantic similarity search parameters
@@ -55,6 +102,9 @@ pub enum ExpressionFilter {
 
 	/// Regex match
 	Matches(String),
+
+	/// SQLite FTS5 query with BM25 relevance
+	FullText(String),
 }
 
 /// Filter based on context metadata
@@ -120,8 +170,226 @@ pub struct QueryResult {
 	/// Similarity score if semantic search was used
 	pub similarity_score: Option<f32>,
 
+	/// Normalized BM25 relevance if full-text search was used
+	pub lexical_score: Option<f32>,
+
+	/// Weighted semantic/lexical score for hybrid retrieval
+	pub combined_score: Option<f32>,
+
 	/// Explanation of why this entry matched (if requested)
 	pub explanation: Option<String>,
+
+	/// Structured execution details when explanation was requested
+	pub plan: Option<QueryPlan>,
+}
+
+/// Results and execution provenance for one query
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct QueryExecution {
+	/// Rows returned after pagination
+	pub results: Vec<QueryResult>,
+	/// Execution plan, including zero-result queries
+	pub plan: QueryPlan,
+}
+
+/// Concrete strategy used by one execution step
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub enum QueryPlanStrategy {
+	/// SQLite FTS5 candidate selection and BM25 scoring
+	Fts5,
+	/// A predicate evaluated directly by SQLite
+	SqlPredicate,
+	/// A regular-expression scan evaluated in Rust
+	RustRegexScan,
+	/// A JSON predicate evaluated through SQLite JSON functions
+	JsonPredicate,
+	/// Directed relation lookup or traversal
+	GraphTraversal,
+	/// Exhaustive vector scoring in Rust
+	LinearVectorScan,
+	/// Truncation to the highest-ranked semantic matches
+	TopK,
+	/// Stable ordering with an explicit tie-breaker
+	DeterministicSort,
+	/// Cursor, offset, and limit application
+	Pagination,
+}
+
+/// Query component handled by an execution step
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub enum QueryFilterIdentity {
+	/// Semantic meaning filter
+	Meaning,
+	/// Exact expression filter
+	ExpressionEquals,
+	/// Substring expression filter
+	ExpressionContains,
+	/// Expression-prefix filter
+	ExpressionStartsWith,
+	/// Regular-expression filter
+	ExpressionRegex,
+	/// Full-text expression filter
+	ExpressionFullText,
+	/// Context metadata filter
+	Context,
+	/// Temporal filter
+	Temporal,
+	/// Directed relation filter
+	Relations,
+	/// Result ordering
+	Ordering,
+	/// Cursor, offset, and limit
+	Pagination,
+}
+
+/// One measured stage of query execution
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct QueryPlanStep {
+	/// Execution strategy used by this stage
+	pub strategy: QueryPlanStrategy,
+	/// Query component handled by this stage
+	pub filter: Option<QueryFilterIdentity>,
+	/// Candidate count entering this stage
+	pub candidates_before: usize,
+	/// Candidate count leaving this stage
+	pub candidates_after: usize,
+}
+
+/// Typed ranking applied to the result set
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+pub enum QueryRankingMode {
+	/// No relevance ranking
+	None,
+	/// Descending cosine similarity
+	CosineSimilarity,
+	/// Descending normalized BM25 relevance
+	Bm25,
+	/// Weighted semantic and lexical relevance
+	Hybrid {
+		/// Semantic component weight
+		semantic_weight: f32,
+		/// Lexical component weight
+		lexical_weight: f32,
+	},
+}
+
+/// Typed primary ordering used after filtering
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub enum QueryPrimaryOrder {
+	/// Caller-selected non-relevance order
+	Configured(QueryOrder),
+	/// Descending semantic similarity
+	SimilarityDescending,
+	/// Descending BM25 relevance
+	Bm25Descending,
+	/// Descending weighted hybrid score
+	CombinedScoreDescending,
+}
+
+/// Deterministic tie-breaker used by every ordering mode
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub enum QueryTieBreaker {
+	/// Ascending UUID bytes
+	UuidAscending,
+}
+
+/// Ordering provenance for a query
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub struct QueryPlanOrdering {
+	/// Primary ordering rule
+	pub primary: QueryPrimaryOrder,
+	/// Stable tie-breaker applied after the primary rule
+	pub tie_breaker: QueryTieBreaker,
+}
+
+/// Pagination inputs and measured result counts
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct QueryPaginationPlan {
+	/// Cursor supplied by the caller
+	pub cursor: Option<QueryCursor>,
+	/// Number of ordered matches skipped
+	pub offset: usize,
+	/// Maximum rows requested
+	pub limit: Option<usize>,
+	/// Matches available before pagination
+	pub candidates_before: usize,
+	/// Rows retained after pagination
+	pub candidates_after: usize,
+}
+
+/// Structured description of query execution
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct QueryPlan {
+	/// Storage implementation that executed the query
+	pub backend: String,
+	/// Filters used to select candidates
+	pub candidate_filters: Vec<String>,
+	/// Ranking strategy applied after filtering
+	pub ranking: String,
+	/// Entries loaded after indexed candidate selection
+	pub candidates_loaded: usize,
+	/// Matches before cursor/offset/limit pagination
+	pub matches_before_pagination: usize,
+	/// Measured execution stages in execution order
+	pub steps: Vec<QueryPlanStep>,
+	/// Typed ranking mode and exact hybrid weights
+	pub ranking_mode: QueryRankingMode,
+	/// Primary ordering and deterministic tie-breaker
+	pub ordering: QueryPlanOrdering,
+	/// Pagination inputs and before/after counts
+	pub pagination: QueryPaginationPlan,
+	/// Rows returned after pagination
+	pub results_returned: usize,
+}
+
+impl QueryPlan {
+	pub(crate) fn fallback(backend: &str, query: &Query, result_count: usize) -> Self {
+		let ranking_mode = if query.meaning.is_some()
+			&& matches!(query.expression, Some(ExpressionFilter::FullText(_)))
+		{
+			let weights = query.hybrid_weights.unwrap_or(HybridWeights {
+				semantic: 1.0,
+				lexical: 1.0,
+			});
+			QueryRankingMode::Hybrid {
+				semantic_weight: weights.semantic,
+				lexical_weight: weights.lexical,
+			}
+		} else if query.meaning.is_some() {
+			QueryRankingMode::CosineSimilarity
+		} else if matches!(query.expression, Some(ExpressionFilter::FullText(_))) {
+			QueryRankingMode::Bm25
+		} else {
+			QueryRankingMode::None
+		};
+		let primary = match ranking_mode {
+			QueryRankingMode::Hybrid { .. } => QueryPrimaryOrder::CombinedScoreDescending,
+			QueryRankingMode::CosineSimilarity => QueryPrimaryOrder::SimilarityDescending,
+			QueryRankingMode::Bm25 => QueryPrimaryOrder::Bm25Descending,
+			QueryRankingMode::None => QueryPrimaryOrder::Configured(query.order),
+		};
+		Self {
+			backend: backend.to_string(),
+			candidate_filters: Vec::new(),
+			ranking: format!("{ranking_mode:?}"),
+			candidates_loaded: result_count,
+			matches_before_pagination: result_count,
+			steps: Vec::new(),
+			ranking_mode,
+			ordering: QueryPlanOrdering {
+				primary,
+				tie_breaker: QueryTieBreaker::UuidAscending,
+			},
+			pagination: QueryPaginationPlan {
+				cursor: query.cursor,
+				offset: query.offset,
+				limit: query.limit,
+				candidates_before: result_count,
+				candidates_after: result_count,
+			},
+			results_returned: result_count,
+		}
+	}
 }
 
 impl Query {
@@ -134,6 +402,10 @@ impl Query {
 			relations: None,
 			temporal: None,
 			limit: None,
+			offset: 0,
+			cursor: None,
+			order: QueryOrder::default(),
+			hybrid_weights: None,
 			explain: false,
 		}
 	}
@@ -145,6 +417,16 @@ impl Query {
 			threshold,
 			top_k: None,
 		});
+		self
+	}
+
+	/// Limit semantic ranking to the `top_k` most similar entries
+	///
+	/// This must be called after [`Query::with_meaning`].
+	pub fn with_top_k(mut self, top_k: usize) -> Self {
+		if let Some(meaning) = self.meaning.as_mut() {
+			meaning.top_k = Some(top_k);
+		}
 		self
 	}
 
@@ -160,6 +442,12 @@ impl Query {
 		self
 	}
 
+	/// Add a graph relationship filter
+	pub fn with_relations(mut self, filter: RelationFilter) -> Self {
+		self.relations = Some(filter);
+		self
+	}
+
 	/// Add temporal filter
 	pub fn with_temporal(mut self, filter: TemporalFilter) -> Self {
 		self.temporal = Some(filter);
@@ -169,6 +457,30 @@ impl Query {
 	/// Limit number of results
 	pub fn with_limit(mut self, limit: usize) -> Self {
 		self.limit = Some(limit);
+		self
+	}
+
+	/// Skip a number of matching results after deterministic ordering
+	pub fn with_offset(mut self, offset: usize) -> Self {
+		self.offset = offset;
+		self
+	}
+
+	/// Continue a query after an entry returned by its preceding page
+	pub fn with_cursor_after(mut self, id: Uuid) -> Self {
+		self.cursor = Some(QueryCursor { after: id });
+		self
+	}
+
+	/// Set deterministic ordering for a non-semantic query
+	pub fn with_order(mut self, order: QueryOrder) -> Self {
+		self.order = order;
+		self
+	}
+
+	/// Configure score blending for a semantic plus full-text query
+	pub fn with_hybrid_weights(mut self, semantic: f32, lexical: f32) -> Self {
+		self.hybrid_weights = Some(HybridWeights { semantic, lexical });
 		self
 	}
 
@@ -202,6 +514,9 @@ mod tests {
 		assert!(query.relations.is_none());
 		assert!(query.temporal.is_none());
 		assert!(query.limit.is_none());
+		assert_eq!(query.offset, 0);
+		assert!(query.cursor.is_none());
+		assert_eq!(query.order, QueryOrder::CreatedAtAsc);
 		assert!(!query.explain);
 	}
 
@@ -235,6 +550,33 @@ mod tests {
 		let meaning = query.meaning.unwrap();
 		assert_eq!(meaning.vector, vector);
 		assert!(meaning.threshold.is_none());
+	}
+
+	#[test]
+	fn test_query_with_top_k() {
+		let query = Query::new()
+			.with_meaning(vec![0.1, 0.2], None)
+			.with_top_k(5);
+
+		assert_eq!(query.meaning.unwrap().top_k, Some(5));
+	}
+
+	#[test]
+	fn test_query_with_top_k_without_meaning_is_a_no_op() {
+		let query = Query::new().with_top_k(5);
+
+		assert!(query.meaning.is_none());
+	}
+
+	#[test]
+	fn test_query_with_relations() {
+		let id = Uuid::new_v4();
+		let query = Query::new().with_relations(RelationFilter::DirectlyRelatedTo(id));
+
+		assert!(matches!(
+			query.relations,
+			Some(RelationFilter::DirectlyRelatedTo(actual)) if actual == id
+		));
 	}
 
 	#[test]
@@ -420,6 +762,40 @@ mod tests {
 	}
 
 	#[test]
+	fn test_query_with_offset_and_order() {
+		let query = Query::new()
+			.with_offset(10)
+			.with_order(QueryOrder::UpdatedAtDesc);
+
+		assert_eq!(query.offset, 10);
+		assert_eq!(query.order, QueryOrder::UpdatedAtDesc);
+	}
+
+	#[test]
+	fn test_query_with_cursor() {
+		let id = Uuid::new_v4();
+		let query = Query::new().with_cursor_after(id);
+
+		assert_eq!(query.cursor, Some(QueryCursor { after: id }));
+	}
+
+	#[test]
+	fn test_query_with_hybrid_weights() {
+		let query = Query::new()
+			.with_meaning(vec![0.1], None)
+			.with_expression(ExpressionFilter::FullText("rust".to_string()))
+			.with_hybrid_weights(0.7, 0.3);
+
+		assert_eq!(
+			query.hybrid_weights,
+			Some(HybridWeights {
+				semantic: 0.7,
+				lexical: 0.3,
+			})
+		);
+	}
+
+	#[test]
 	fn test_query_with_explanation() {
 		let query = Query::new().with_explanation();
 		assert!(query.explain);
@@ -495,7 +871,10 @@ mod tests {
 		let result = QueryResult {
 			entry: entry.clone(),
 			similarity_score: Some(0.95),
+			lexical_score: None,
+			combined_score: None,
 			explanation: Some("Matched by semantic search".to_string()),
+			plan: None,
 		};
 
 		assert_eq!(result.entry.id, entry.id);
@@ -509,7 +888,10 @@ mod tests {
 		let result = QueryResult {
 			entry,
 			similarity_score: None,
+			lexical_score: None,
+			combined_score: None,
 			explanation: None,
+			plan: None,
 		};
 
 		assert!(result.similarity_score.is_none());

@@ -1,5 +1,6 @@
-use crate::query::{Query, QueryResult};
+use crate::query::{Query, QueryExecution, QueryPlan, QueryResult};
 use crate::types::Entry;
+use std::path::Path;
 use thiserror::Error;
 use uuid::Uuid;
 
@@ -23,6 +24,68 @@ pub enum StorageError {
 
 pub type StorageResult<T> = Result<T, StorageError>;
 
+/// Result of checking backend data and schema integrity
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+pub struct IntegrityReport {
+	/// Problems found during the check
+	pub issues: Vec<IntegrityIssue>,
+}
+
+impl IntegrityReport {
+	/// Whether no integrity problems were found
+	pub fn is_healthy(&self) -> bool {
+		self.issues.is_empty()
+	}
+}
+
+/// A single integrity problem
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct IntegrityIssue {
+	/// Area in which the problem was found
+	pub area: String,
+	/// Human-readable problem description
+	pub message: String,
+}
+
+/// Database-wide identity of the embedding representation
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct EmbeddingProfile {
+	/// Provider or model identifier
+	pub model: String,
+	/// Optional model revision or application-specific version
+	pub version: Option<String>,
+	/// Required vector dimensions
+	pub dimensions: usize,
+}
+
+/// Mutation recorded in an entry's durable revision history
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum RevisionOperation {
+	/// Existing data captured when revision tracking was introduced
+	Snapshot,
+	/// Entry creation
+	Insert,
+	/// Entry update
+	Update,
+	/// Entry deletion
+	Delete,
+}
+
+/// Immutable snapshot of an entry at a mutation boundary
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct EntryRevision {
+	/// Unique revision identifier
+	pub revision_id: Uuid,
+	/// Entry to which the revision belongs
+	pub entry_id: Uuid,
+	/// Mutation that produced this revision
+	pub operation: RevisionOperation,
+	/// Complete entry state at that boundary
+	pub snapshot: Entry,
+	/// Time at which the revision was recorded
+	pub recorded_at: chrono::DateTime<chrono::Utc>,
+}
+
 /// Trait that all storage backends must implement
 ///
 /// This allows ContextDB to work with SQLite, PostgreSQL, MySQL, or any other backend
@@ -30,20 +93,75 @@ pub trait StorageBackend: Send {
 	/// Insert a new entry
 	fn insert(&mut self, entry: &Entry) -> StorageResult<()>;
 
+	/// Insert entries atomically
+	fn insert_batch(&mut self, entries: &[Entry]) -> StorageResult<()>;
+
 	/// Get an entry by ID
 	fn get(&self, id: Uuid) -> StorageResult<Entry>;
 
 	/// Execute a query and return matching entries
 	fn query(&self, query: &Query) -> StorageResult<Vec<QueryResult>>;
 
+	/// Execute a query and return matching entries with top-level provenance
+	fn execute(&self, query: &Query) -> StorageResult<QueryExecution> {
+		let results = self.query(query)?;
+		let plan = results
+			.iter()
+			.find_map(|result| result.plan.clone())
+			.unwrap_or_else(|| QueryPlan::fallback(self.backend_name(), query, results.len()));
+		Ok(QueryExecution { results, plan })
+	}
+
 	/// Update an existing entry
 	fn update(&mut self, entry: &Entry) -> StorageResult<()>;
+
+	/// Update entries atomically
+	fn update_batch(&mut self, entries: &[Entry]) -> StorageResult<()>;
 
 	/// Delete an entry by ID
 	fn delete(&mut self, id: Uuid) -> StorageResult<()>;
 
+	/// Delete entries atomically
+	fn delete_batch(&mut self, ids: &[Uuid]) -> StorageResult<()>;
+
 	/// Count total entries
 	fn count(&self) -> StorageResult<usize>;
+
+	/// Check schema and stored-data integrity
+	fn integrity_check(&self) -> StorageResult<IntegrityReport>;
+
+	/// Write a consistent backend snapshot to a destination path
+	fn backup_to(&self, destination: &Path) -> StorageResult<()>;
+
+	/// Read the configured embedding profile, if one has been set
+	fn embedding_profile(&self) -> StorageResult<Option<EmbeddingProfile>>;
+
+	/// Configure the embedding profile, rejecting incompatible stored data
+	fn set_embedding_profile(&mut self, profile: &EmbeddingProfile) -> StorageResult<()>;
+
+	/// Attest that legacy, unidentified vectors use this embedding profile
+	fn adopt_legacy_embedding_profile(&mut self, _profile: &EmbeddingProfile) -> StorageResult<()> {
+		Err(StorageError::Database(
+			"Legacy embedding-profile adoption is not supported by this backend".to_string(),
+		))
+	}
+
+	/// Atomically replace every stored vector and change the embedding profile
+	fn migrate_embeddings(
+		&mut self,
+		_profile: &EmbeddingProfile,
+		_replacements: &[(Uuid, Vec<f32>)],
+	) -> StorageResult<()> {
+		Err(StorageError::Database(
+			"Embedding migration is not supported by this backend".to_string(),
+		))
+	}
+
+	/// Return durable revision history for an entry
+	fn revisions(&self, id: Uuid) -> StorageResult<Vec<EntryRevision>>;
+
+	/// Create a selective SQLite-style index for a JSON Pointer context path
+	fn create_context_index(&mut self, path: &str) -> StorageResult<String>;
 
 	/// Get backend name for debugging
 	fn backend_name(&self) -> &str;

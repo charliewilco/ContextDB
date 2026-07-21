@@ -784,9 +784,11 @@ fn cmd_repl(path: PathBuf) -> Result<(), Box<dyn std::error::Error>> {
 			}
 			"recent" => {
 				let count: usize = args.parse().unwrap_or(10);
-				let mut results = db.query(&Query::new())?;
-				results.sort_by(|a, b| b.entry.created_at.cmp(&a.entry.created_at));
-				results.truncate(count);
+				let results = db.query(
+					&Query::new()
+						.with_order(QueryOrder::CreatedAtDesc)
+						.with_limit(count),
+				)?;
 				for result in &results {
 					println!(
 						"{} | {} | {}",

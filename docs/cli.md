@@ -14,7 +14,8 @@ Complete reference for the `contextdb` CLI.
 The CLI is behind the `cli` feature flag:
 
 ```sh
-cargo install contextdb --features cli
+cargo install --git https://github.com/charliewilco/contextdb \
+	--branch main --locked --features cli --bin contextdb
 ```
 
 ## Global help
@@ -25,6 +26,15 @@ contextdb --version
 ```
 
 ## Command reference
+
+### `add` - Add an entry
+
+```sh
+contextdb add <path> --expression <text> --meaning <f32,...> \
+	[--context <json>] [--relation <uuid,...>]
+```
+
+The database must already exist. Vector and relation validation is the same as the Rust API.
 
 ### `init` - Create a new database
 
@@ -87,7 +97,7 @@ contextdb list mydata.db
 contextdb list mydata.db --limit 50 --format plain
 ```
 
-Note: the current implementation ignores `--offset` and always starts from the beginning.
+`--offset` is applied after deterministic created-at ordering.
 
 ### `show` - Show a specific entry
 
@@ -129,6 +139,8 @@ Example:
 ```sh
 contextdb import mydata.db entries.json
 ```
+
+The complete import is one transaction. Invalid vectors, duplicate IDs, missing relation targets, or any other insertion failure leaves the database unchanged.
 
 ### `delete` - Delete an entry
 
@@ -191,13 +203,47 @@ contextdb> search coffee
 ...
 ```
 
+### `check` - Verify integrity
+
+```sh
+contextdb check <path>
+```
+
+Checks SQLite pages, foreign keys, entry/revision decoding, vector metadata, and the FTS5 index. The command exits unsuccessfully when issues are found.
+
+### `backup` and `restore` - Snapshot management
+
+```sh
+contextdb backup <path> <output>
+contextdb restore <backup> <new-destination>
+```
+
+Both output paths must not already exist. Restore runs an integrity check before reporting success.
+
+### `profile` - Embedding identity
+
+```sh
+contextdb profile <path>
+contextdb profile <path> --model <name> --version <revision> --dimensions <n>
+```
+
+Changing an established profile on a populated database is rejected because existing entries would require re-embedding.
+
+### `revisions` - Entry history
+
+```sh
+contextdb revisions <path> <uuid-or-current-prefix>
+```
+
+A full UUID can retrieve history after the current entry has been deleted. Prefix lookup applies only to current entries.
+
 ## Import/export format
 
 `contextdb export` writes a JSON array of `Entry` objects. `contextdb import` expects the same format.
 
 ## Pitfalls
-- `--offset` is accepted but not yet applied.
 - Use a unique ID prefix for `show` and `delete`.
+- `add`, `stats`, and other commands except `init` require the database path to exist.
 
 ## Next steps
 - See `data-portability.md` for backup flows.

@@ -15,28 +15,17 @@ Embeddings are user-supplied; this example uses a tiny 3-D vector for clarity.
 
 ```bash
 # Install the CLI
-cargo install contextdb --features cli
+cargo install --git https://github.com/charliewilco/contextdb \
+	--branch main --locked --features cli --bin contextdb
 
 # Create a database
 contextdb init mydata.db
 
-# Insert one entry (via import)
-python - <<'PY'
-import json, uuid, datetime
-now = datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z")
-entry = {
-    "id": str(uuid.uuid4()),
-    "meaning": [0.1, 0.2, 0.3],
-    "expression": "User doesn't like red onions",
-    "context": None,
-    "created_at": now,
-    "updated_at": now,
-    "relations": [],
-}
-with open("entry.json", "w") as f:
-    json.dump([entry], f)
-PY
-contextdb import mydata.db entry.json
+# Insert one entry
+contextdb add mydata.db \
+	--expression "User doesn't like red onions" \
+	--meaning 0.1,0.2,0.3 \
+	--context '{"source":"quickstart"}'
 
 # Query by text
 contextdb search mydata.db "onion"

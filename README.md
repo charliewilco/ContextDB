@@ -11,9 +11,11 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 
-**A novel database for semantic data with human accountability**
+**An embedded SQLite retrieval library for semantic data with human-readable inspection**
 
 ContextDB is an embedded database designed for LLM-powered applications that need to maintain context and memory. Unlike traditional vector databases where human-readable metadata is an afterthought, ContextDB treats **meaning** (vector embeddings) and **expression** (human-readable text) as co-equal, first-class representations of the same data.
+
+The current implementation provides transactional SQLite storage, vector and FTS5 retrieval, structured metadata/relationship/time filters, deterministic pagination, revision history, backups, a CLI, and a versioned C JSON API. Vector similarity is still an in-process linear scan; ContextDB is pre-alpha and is not a client-server database or an ANN vector index.
 
 - [Docs Index](./docs/README.md)
 - [Why ContextDB?](./docs/why.md)

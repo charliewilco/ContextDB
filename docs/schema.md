@@ -1,88 +1,39 @@
 # Data Schema
 
-## Overview
-This guide explains the SQLite schema and JSON shapes that ContextDB uses.
-
-## When to use
-- You are inspecting the database directly in SQL tools.
-- You need to export, validate, or transform data.
-- You are building integrations around the raw `.db` file.
-
-## Examples
+ContextDB's current SQLite schema version is 2, stored in `PRAGMA user_version`. Opening a legacy database validates entries and relations, rebuilds relation constraints, records initial revision snapshots, and migrates transactionally. A database from a newer schema version is rejected.
 
 ## Tables
 
-ContextDB stores data in two SQLite tables: `entries` and `relations`.
+`entries` stores `id`, JSON-encoded `meaning` bytes in a BLOB, `expression`, JSON-text `context`, `created_at`, and `updated_at`. Timestamp columns contain RFC3339 strings.
 
-### `entries`
+`relations(from_id, to_id)` stores directed outgoing edges. Its composite primary key prevents duplicates, a check rejects self-relations, and foreign keys reference `entries` with `ON DELETE CASCADE`.
 
-```sql
-CREATE TABLE IF NOT EXISTS entries (
-    id TEXT PRIMARY KEY,
-    meaning BLOB NOT NULL,
-    expression TEXT NOT NULL,
-    context TEXT NOT NULL,
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL
-);
-```
+`contextdb_metadata(key, value)` stores `vector_dimension`, `embedding_model`, and optional `embedding_model_version`. A dimension without a model represents legacy-unidentified vectors; assigning model identity then requires explicit adoption or complete re-embedding through the public API.
 
-Column details:
-- `id`: UUID string.
-- `meaning`: BLOB containing a bincode-serialized `Vec<f32>`.
-- `expression`: human-readable text.
-- `context`: JSON as text.
-- `created_at`: RFC3339 timestamp string.
-- `updated_at`: RFC3339 timestamp string.
+`entry_revisions` stores `revision_id`, `entry_id`, `operation`, the complete entry JSON `snapshot`, and `recorded_at`. Delete revisions intentionally remain after the entry is removed.
 
-### `relations`
+`entries_fts` is an FTS5 virtual table containing entry IDs and expressions. Insert/update/delete triggers keep it synchronized.
 
-```sql
-CREATE TABLE IF NOT EXISTS relations (
-    from_id TEXT NOT NULL,
-    to_id TEXT NOT NULL,
-    PRIMARY KEY (from_id, to_id),
-    FOREIGN KEY (from_id) REFERENCES entries(id),
-    FOREIGN KEY (to_id) REFERENCES entries(id)
-);
-```
+## Indexes
 
-### Indexes
+Built-in indexes cover entry creation/update/expression fields, both relation endpoints, and revision history. `create_context_index("/project/id")` creates a deterministic SQLite expression index on the corresponding `json_extract(context, ...)` path.
 
-```sql
-CREATE INDEX IF NOT EXISTS idx_entries_created_at ON entries(created_at);
-CREATE INDEX IF NOT EXISTS idx_entries_updated_at ON entries(updated_at);
-CREATE INDEX IF NOT EXISTS idx_entries_expression ON entries(expression);
-CREATE INDEX IF NOT EXISTS idx_relations_from ON relations(from_id);
-CREATE INDEX IF NOT EXISTS idx_relations_to ON relations(to_id);
-```
-
-## JSON export/import shape
-
-`contextdb export` writes a JSON array of full `Entry` objects. `contextdb import` expects the same format.
+## Entry JSON
 
 ```json
-[
-  {
-    "id": "f4fdc8c4-5a4e-4d92-9b9b-9a2a0cc8b3c3",
-    "meaning": [0.1, 0.2, 0.3],
-    "expression": "User prefers cold brew coffee",
-    "context": {"category": "dietary", "confidence": 0.9},
-    "created_at": "2026-01-15T10:30:00Z",
-    "updated_at": "2026-01-15T10:30:00Z",
-    "relations": []
-  }
-]
+{
+  "id": "f4fdc8c4-5a4e-4d92-9b9b-9a2a0cc8b3c3",
+  "meaning": [0.1, 0.2, 0.3],
+  "expression": "User prefers cold brew coffee",
+  "context": {"category": "dietary", "confidence": 0.9},
+  "created_at": "2026-01-15T10:30:00Z",
+  "updated_at": "2026-01-15T10:30:00Z",
+  "relations": []
+}
 ```
 
-## Pitfalls
-- `meaning` is a binary blob in SQLite; do not treat it as JSON or text.
-- `context` must be valid JSON if you edit it directly.
-- Timestamps should be RFC3339 strings for compatibility.
+Direct SQL changes bypass API validation and revision recording. Treat the schema as an implementation detail unless performing a controlled recovery or migration.
 
-## Next steps
-- See `base.md` for GUI inspection.
-- See `data-portability.md` for export/import workflows.
 ---
 
 | Prev | Next |

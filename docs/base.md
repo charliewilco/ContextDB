@@ -36,7 +36,7 @@ ContextDB uses two tables:
 
 - `entries`
   - `id` (TEXT, UUID)
-  - `meaning` (BLOB, bincode-serialized `Vec<f32>`)
+  - `meaning` (BLOB containing JSON-encoded `Vec<f32>` bytes)
   - `expression` (TEXT)
   - `context` (TEXT, JSON string)
   - `created_at` (TEXT, RFC3339)
@@ -87,7 +87,7 @@ Because of macOS sandboxing, Base can only attach databases you have explicitly 
 
 ## Notes and gotchas
 
-- The `meaning` column is a bincode-serialized vector; treat it as an opaque BLOB unless you know the encoding.
+- The `meaning` column contains JSON-encoded vector bytes; treat it as an opaque BLOB and use the public API for migrations.
 - The `context` column is JSON stored as text; keep it valid JSON if you edit it.
 - If another app modifies the database while Base is open, use Base’s Refresh menu item to reload visible data. citeturn0search10
 - Base 3 requires macOS 15 (Sequoia) or newer. citeturn0search10

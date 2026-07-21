@@ -1,7 +1,9 @@
 # Installation
 
 ## Overview
-ContextDB has no published crate, tag, release binary, or Homebrew tap yet. Install the pre-alpha CLI from the current Git main branch or build a checkout.
+ContextDB v0.1.0 is available as a tagged Swift package with a binary XCFramework.
+The Rust crate and Homebrew formula are not published registries or taps; install
+the pre-alpha CLI from Git or build a checkout.
 
 ## When to use
 - You are setting up a new environment.
@@ -14,6 +16,7 @@ ContextDB has no published crate, tag, release binary, or Homebrew tap yet. Inst
 - Local Homebrew formula: convenient for testing a checkout on macOS.
 - Install script: a wrapper around Cargo's Git installation; Rust is required.
 - Cargo: install directly from the current Git main branch.
+- Swift Package Manager: use the tagged binary package on iOS 15+ and macOS 12+.
 - From source: best for contributing or hacking on the codebase.
 
 ## Option A: local Homebrew formula (macOS)
@@ -44,6 +47,20 @@ git clone https://github.com/charliewilco/contextdb.git
 cd contextdb
 cargo run --features cli --bin contextdb -- --help
 ```
+
+## Swift Package Manager
+
+Add `https://github.com/charliewilco/ContextDB` to an Xcode project and select
+version `0.1.0`, or add the package in a manifest:
+
+```swift
+.package(
+	url: "https://github.com/charliewilco/ContextDB",
+	exact: "0.1.0"
+)
+```
+
+See the [Apple platform guide](ios.md) for the typed API and supported platforms.
 
 ## Verify install
 

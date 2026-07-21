@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-07-21
+
 ### Added
 - Atomic insert, update, and delete batch APIs
 - Schema version 2 with validated transactional migration
@@ -19,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Integrity checking and SQLite online backup/restore
 - CLI `add`, integrity, backup/restore, embedding-profile, and revision commands plus atomic JSON import
 - C ABI version 1 JSON operations for insert, get, update, delete, and query
+- Typed Swift package with a checksum-addressed XCFramework for iOS and macOS
 - Typed query execution plans with measured stages, ranking, ordering, and pagination
 - Expanded documentation and examples
 
@@ -63,4 +66,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Single-threaded query execution
 - Not optimized for > 100k entries
 
-[Unreleased]: https://github.com/charliewilco/contextdb/commits/main
+[Unreleased]: https://github.com/charliewilco/contextdb/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/charliewilco/contextdb/releases/tag/v0.1.0

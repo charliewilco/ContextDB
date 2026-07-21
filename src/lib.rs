@@ -48,10 +48,15 @@ mod storage;
 mod types;
 
 pub use query::{
-	ContextFilter, ExpressionFilter, MeaningFilter, Query, QueryResult, RelationFilter,
-	TemporalFilter,
+	ContextFilter, ExpressionFilter, HybridWeights, MeaningFilter, Query, QueryCursor,
+	QueryExecution, QueryFilterIdentity, QueryOrder, QueryPaginationPlan, QueryPlan,
+	QueryPlanOrdering, QueryPlanStep, QueryPlanStrategy, QueryPrimaryOrder, QueryRankingMode,
+	QueryResult, QueryTieBreaker, RelationFilter, TemporalFilter,
 };
-pub use storage::{SqliteStorage, StorageBackend, StorageError, StorageResult};
+pub use storage::{
+	EmbeddingProfile, EntryRevision, IntegrityIssue, IntegrityReport, RevisionOperation,
+	SqliteStorage, StorageBackend, StorageError, StorageResult,
+};
 pub use types::{cosine_similarity, Entry};
 
 #[cfg(feature = "ffi")]
@@ -95,6 +100,11 @@ impl ContextDB {
 		self.storage.insert(entry)
 	}
 
+	/// Insert multiple entries atomically
+	pub fn insert_batch(&mut self, entries: &[Entry]) -> StorageResult<()> {
+		self.storage.insert_batch(entries)
+	}
+
 	/// Get an entry by its ID
 	pub fn get(&self, id: uuid::Uuid) -> StorageResult<Entry> {
 		self.storage.get(id)
@@ -105,9 +115,19 @@ impl ContextDB {
 		self.storage.query(query)
 	}
 
+	/// Execute a query and return both rows and top-level execution provenance
+	pub fn execute(&self, query: &Query) -> StorageResult<QueryExecution> {
+		self.storage.execute(query)
+	}
+
 	/// Update an existing entry
 	pub fn update(&mut self, entry: &Entry) -> StorageResult<()> {
 		self.storage.update(entry)
+	}
+
+	/// Update multiple entries atomically
+	pub fn update_batch(&mut self, entries: &[Entry]) -> StorageResult<()> {
+		self.storage.update_batch(entries)
 	}
 
 	/// Delete an entry by ID
@@ -115,9 +135,70 @@ impl ContextDB {
 		self.storage.delete(id)
 	}
 
+	/// Delete multiple entries atomically
+	pub fn delete_batch(&mut self, ids: &[uuid::Uuid]) -> StorageResult<()> {
+		self.storage.delete_batch(ids)
+	}
+
 	/// Count total entries in the database
 	pub fn count(&self) -> StorageResult<usize> {
 		self.storage.count()
+	}
+
+	/// Check schema and stored-data integrity
+	pub fn integrity_check(&self) -> StorageResult<IntegrityReport> {
+		self.storage.integrity_check()
+	}
+
+	/// Write a consistent database snapshot to a destination path
+	pub fn backup_to<P: AsRef<Path>>(&self, destination: P) -> StorageResult<()> {
+		self.storage.backup_to(destination.as_ref())
+	}
+
+	/// Read the configured embedding profile
+	pub fn embedding_profile(&self) -> StorageResult<Option<EmbeddingProfile>> {
+		self.storage.embedding_profile()
+	}
+
+	/// Configure the database-wide embedding model, version, and dimensions
+	pub fn set_embedding_profile(&mut self, profile: &EmbeddingProfile) -> StorageResult<()> {
+		self.storage.set_embedding_profile(profile)
+	}
+
+	/// Attest that all existing legacy vectors use the supplied embedding profile
+	pub fn adopt_legacy_embedding_profile(
+		&mut self,
+		profile: &EmbeddingProfile,
+	) -> StorageResult<()> {
+		self.storage.adopt_legacy_embedding_profile(profile)
+	}
+
+	/// Atomically replace every stored vector and change the embedding profile
+	pub fn migrate_embeddings(
+		&mut self,
+		profile: &EmbeddingProfile,
+		replacements: &[(uuid::Uuid, Vec<f32>)],
+	) -> StorageResult<()> {
+		self.storage.migrate_embeddings(profile, replacements)
+	}
+
+	/// Return durable revision history for an entry
+	pub fn revisions(&self, id: uuid::Uuid) -> StorageResult<Vec<EntryRevision>> {
+		self.storage.revisions(id)
+	}
+
+	/// Create an index for a frequently filtered JSON Pointer context path
+	pub fn create_context_index(&mut self, path: &str) -> StorageResult<String> {
+		self.storage.create_context_index(path)
+	}
+
+	/// Restore a SQLite snapshot into a new destination database
+	pub fn restore<P: AsRef<Path>, Q: AsRef<Path>>(
+		backup: P,
+		destination: Q,
+	) -> StorageResult<Self> {
+		SqliteStorage::restore_from(backup.as_ref(), destination.as_ref())?;
+		Self::new(destination)
 	}
 
 	/// Get the name of the storage backend being used

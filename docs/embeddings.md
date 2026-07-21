@@ -261,8 +261,12 @@ The best size depends on model and use case; validate with retrieval quality tes
 ## Model Consistency and Drift
 
 - **Consistency**: All entries in one database should share the same model and dimension.
-- **Drift**: If you upgrade models, store `model` and `version` in `context` so you can
-  filter or migrate entries safely.
+- **Identity**: Configure `EmbeddingProfile { model, version, dimensions }` before the
+  first insert when provenance is known.
+- **Legacy data**: `adopt_legacy_embedding_profile` explicitly attests the identity of
+  existing unidentified vectors; ordinary profile assignment cannot relabel them.
+- **Drift**: `migrate_embeddings` requires one replacement for every entry and updates
+  the vectors, profile metadata, timestamps, and revision snapshots atomically.
 
 ## Tips
 
@@ -275,7 +279,7 @@ The best size depends on model and use case; validate with retrieval quality tes
 let entry1 = Entry::new(openai_embedding, "text1"); // 1536 dims
 let entry2 = Entry::new(miniml_embedding, "text2"); // 384 dims
 // Similarity calculations will be meaningless!
-// (ContextDB returns 0.0 if dimensions differ.)
+// ContextDB rejects the second insert because dimensions differ.
 
 // ✅ GOOD: Same model for all
 let embedding1 = model.encode("text1");

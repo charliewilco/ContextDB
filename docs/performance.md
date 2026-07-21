@@ -1,49 +1,38 @@
 # Performance
 
-## Overview
-Current performance characteristics and trade-offs.
+ContextDB uses SQLite for persistence and FTS5/BM25 for full-text retrieval. Semantic search deserializes candidate vectors and computes cosine similarity in process, so its cost remains linear in the candidate count and vector dimension.
 
-## When to use
-- You are sizing a dataset or planning scale.
+No dataset-size or latency guarantee is currently published. Measure with your vectors, filters, filesystem, and hardware before choosing a production workload.
 
-## Examples
+Practical guidance:
 
-## Current implementation
+- Use `FullText` or selective filters to narrow work where the query permits it.
+- Create JSON expression indexes for frequently queried context paths with `create_context_index`.
+- Use atomic batch mutation APIs to amortize transaction overhead.
+- Keep embedding dimensions no larger than the selected model requires.
+- Use cursor pagination to continue after the final entry in a deterministically ordered page. The cursor entry must still match the query.
 
-- **Storage**: SQLite with bundled library
-- **Vector search**: Linear scan with cosine similarity
-- **Suitable for**: under ~100,000 entries (rule of thumb)
-- **Query latency**:
-  - Text/metadata queries: typically < 1ms (indexed)
-  - Semantic queries: O(n) - linear in entry count
-  - Hybrid queries: sum of component costs
+Run the included Criterion benchmarks with:
 
-## Practical tips
-
-- Keep embedding dimensions as small as your model allows.
-- Prefer metadata or text filters to narrow the candidate set before vector scoring.
-- Batch inserts when possible to reduce transaction overhead.
-
-## Optimization roadmap
-
-- [ ] HNSW index for approximate nearest neighbor search
-- [ ] Batch insertion API
-- [ ] Query result caching
-- [ ] Parallel vector comparison
-- [ ] Memory-mapped vectors
-- [ ] Persistent vector index
-
-## Benchmarks
-
-```bash
-cargo bench  # Coming soon
+```sh
+cargo bench
 ```
 
-## Pitfalls
-- Large datasets will slow linear vector scans.
+An indicative local run on July 10, 2026 used 5,000 entries with 128-dimensional vectors, 10 samples, one-second warmup, and one-second measurement windows:
 
-## Next steps
-- See `roadmap.md` for planned optimizations.
+| Operation | Observed interval |
+| --- | ---: |
+| Atomic batch insert, 1,000 entries | 32.9–33.9 ms |
+| Semantic query, 5,000 candidates | 49.5–51.1 ms |
+| Substring query, 5,000 entries | 7.4–8.7 ms |
+| FTS5 query, 5,000 entries | 6.6–6.8 ms |
+| Hybrid FTS5/vector query | 8.1–8.4 ms |
+| Indexed context query returning roughly half the dataset | 30.0–31.0 ms |
+
+These numbers are development evidence, not a performance contract. The context result remains comparatively expensive because matching entries and their vectors must still be decoded.
+
+The major remaining scaling limitation is the lack of an approximate-nearest-neighbor index. Caching, parallel scoring, and memory-mapped vector storage are not implemented.
+
 ---
 
 | Prev | Next |

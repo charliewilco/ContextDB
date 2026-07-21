@@ -65,11 +65,11 @@ jobs:
 
       - name: Build (cross)
         if: matrix.cross
-        run: cross build --release --target ${{ matrix.target }} --bin contextdb --features cli
+        run: cross build --locked --release --target ${{ matrix.target }} --bin contextdb --features cli
 
       - name: Build (native)
         if: ${{ !matrix.cross }}
-        run: cargo build --release --target ${{ matrix.target }} --bin contextdb --features cli
+        run: cargo build --locked --release --target ${{ matrix.target }} --bin contextdb --features cli
 
       - name: Get version
         id: version
@@ -129,60 +129,3 @@ jobs:
             artifacts/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  publish-crate:
-    name: Publish to crates.io
-    needs: release
-    runs-on: ubuntu-latest
-    if: ${{ !contains(github.ref_name, '-') }}  # Don't publish pre-releases
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Publish to crates.io
-        run: cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        continue-on-error: true
-
-  update-homebrew:
-    name: Update Homebrew Formula
-    needs: release
-    runs-on: ubuntu-latest
-    if: ${{ !contains(github.ref_name, '-') }}  # Don't update for pre-releases
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Get version
-        id: version
-        run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
-
-      - name: Download macOS artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: contextdb-darwin-aarch64
-          path: artifacts
-
-      - name: Get SHA256
-        id: sha256
-        run: |
-          SHA=$(cat artifacts/contextdb-${{ steps.version.outputs.version }}-darwin-aarch64.tar.gz.sha256 | awk '{print $1}')
-          echo "sha256=$SHA" >> $GITHUB_OUTPUT
-
-      - name: Update formula
-        run: |
-          sed -i "s|url \".*\"|url \"https://github.com/${{ github.repository }}/archive/refs/tags/v${{ steps.version.outputs.version }}.tar.gz\"|" Formula/contextdb.rb
-          sed -i "s|sha256 \".*\"|sha256 \"${{ steps.sha256.outputs.sha256 }}\"|" Formula/contextdb.rb
-
-      - name: Commit formula update
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add Formula/contextdb.rb
-          git commit -m "Update Homebrew formula to v${{ steps.version.outputs.version }}" || echo "No changes to commit"
-          git push || echo "Nothing to push"
-        continue-on-error: true

@@ -1,172 +1,65 @@
 # API Reference
 
-## Overview
-Compact Rust API reference for ContextDB.
-
-## When to use
-- You want method signatures.
-- You are integrating into Rust code.
-
-## Examples
-
-This is a quick reference to the public Rust API. It is not an exhaustive spec. For workflows and patterns, see `quickstart.md`, `usage.md`, and `query-language.md`.
-
 ## Core types
 
-### `ContextDB`
+`Entry` contains a UUID, finite non-empty `Vec<f32>` meaning, expression, JSON context, timestamps, and directed outgoing relation UUIDs. All entries in a database must use the same vector dimension.
 
 ```rust
-impl ContextDB {
-    pub fn in_memory() -> StorageResult<Self>;
-    pub fn new<P: AsRef<Path>>(path: P) -> StorageResult<Self>;
-    pub fn with_backend<B: StorageBackend>(backend: B) -> Self;
-
-    pub fn backend_name(&self) -> &str;
-
-    pub fn insert(&mut self, entry: &Entry) -> StorageResult<()>;
-    pub fn get(&self, id: Uuid) -> StorageResult<Entry>;
-    pub fn update(&mut self, entry: &Entry) -> StorageResult<()>;
-    pub fn delete(&mut self, id: Uuid) -> StorageResult<()>;
-
-    pub fn count(&self) -> StorageResult<usize>;
-    pub fn query(&self, query: &Query) -> StorageResult<Vec<QueryResult>>;
-}
+let entry = Entry::new(vec![0.1, 0.2, 0.3], "Example".into())
+	.with_context(serde_json::json!({"source": "user"}))
+	.add_relation(other_id);
 ```
 
-### `Entry`
+`Query` can combine these filters:
+
+- `MeaningFilter { vector, threshold, top_k }`
+- `ExpressionFilter::{Equals, Contains, StartsWith, Matches, FullText}`
+- `ContextFilter::{PathExists, PathEquals, PathContains, And, Or}`
+- `RelationFilter::{DirectlyRelatedTo, WithinDistance, HasRelations, NoRelations}`
+- `TemporalFilter::{CreatedAfter, CreatedBefore, CreatedBetween, UpdatedAfter, UpdatedBefore}`
+
+Builder methods are `with_meaning`, `with_top_k`, `with_expression`, `with_context`, `with_relations`, `with_temporal`, `with_limit`, `with_offset`, `with_cursor_after`, `with_order`, `with_hybrid_weights`, and `with_explanation`.
+
+Non-semantic ordering uses `QueryOrder`: `CreatedAtAsc` (the default), `CreatedAtDesc`, `UpdatedAtAsc`, `UpdatedAtDesc`, `ExpressionAsc`, or `ExpressionDesc`. UUID breaks ties deterministically. A query cannot combine cursor and offset pagination.
+
+`QueryResult` contains `entry`, optional `similarity_score`, optional normalized `lexical_score`, optional `combined_score`, and optional human-readable `explanation` plus a compatibility copy of `QueryPlan` when explanation is enabled. `execute` returns `QueryExecution { results, plan }` even when no rows match. Its typed steps report the strategy and measured before/after count for SQL/JSON predicates, FTS5, Rust regex scans, graph traversal, linear vector scoring, top-k, deterministic sorting, and pagination. Hybrid weights are valid only for a query combining meaning with `FullText`; weights must be finite, non-negative, and have a positive sum.
+
+## `ContextDB`
 
 ```rust
-impl Entry {
-    pub fn new(meaning: Vec<f32>, expression: String) -> Self;
-    pub fn with_context(self, context: serde_json::Value) -> Self;
-    pub fn add_relation(self, entry_id: Uuid) -> Self;
-}
+ContextDB::in_memory() -> StorageResult<ContextDB>
+ContextDB::new(path) -> StorageResult<ContextDB>
+ContextDB::with_backend(backend) -> ContextDB
+
+db.insert(&entry)
+db.insert_batch(&entries)
+db.get(id)
+db.query(&query)
+db.execute(&query)
+db.update(&entry)
+db.update_batch(&entries)
+db.delete(id)
+db.delete_batch(&ids)
+db.count()
+
+db.integrity_check()
+db.backup_to(path)
+ContextDB::restore(backup, destination)
+db.embedding_profile()
+db.set_embedding_profile(&profile)
+db.adopt_legacy_embedding_profile(&profile)
+db.migrate_embeddings(&profile, &replacements)
+db.revisions(id)
+db.create_context_index("/project/id")
+db.backend_name()
 ```
 
-Key fields:
-- `id: Uuid`
-- `meaning: Vec<f32>`
-- `expression: String`
-- `context: serde_json::Value`
-- `created_at: DateTime<Utc>`
-- `updated_at: DateTime<Utc>`
-- `relations: Vec<Uuid>`
+Batch mutations are atomic. Updates and deletes return `StorageError::NotFound` for missing UUIDs. Relations must target existing entries, may not point to the entry itself, and are stored as directed outgoing edges.
 
-### `Query`
+`EmbeddingProfile { model, version, dimensions }` records database-wide embedding identity. `set_embedding_profile` configures an empty database and refuses to retroactively label populated unidentified data. `adopt_legacy_embedding_profile` is the explicit attestation path for known legacy vectors. `migrate_embeddings` requires one validated replacement vector for every current entry and changes vectors, timestamps, revision snapshots, dimensions, and profile metadata atomically.
 
-```rust
-impl Query {
-    pub fn new() -> Self;
+`integrity_check` returns an `IntegrityReport` covering SQLite, foreign-key, entry decoding, vector/dimension metadata, revision, and full-text-index problems. `revisions` returns immutable `EntryRevision` snapshots for insert, update, delete, and legacy migration snapshots.
 
-    pub fn with_meaning(self, vector: Vec<f32>, threshold: Option<f32>) -> Self;
-    pub fn with_expression(self, filter: ExpressionFilter) -> Self;
-    pub fn with_context(self, filter: ContextFilter) -> Self;
-    pub fn with_relations(self, filter: RelationFilter) -> Self;
-    pub fn with_temporal(self, filter: TemporalFilter) -> Self;
-
-    pub fn with_limit(self, limit: usize) -> Self;
-    pub fn with_explanation(self) -> Self;
-}
-```
-
-### Filters
-
-```rust
-pub enum ExpressionFilter {
-    Contains(String),
-    StartsWith(String),
-    EndsWith(String),
-    Exact(String),
-}
-
-pub enum ContextFilter {
-    PathExists(String),
-    PathEquals(String, serde_json::Value),
-    PathContains(String, serde_json::Value),
-    And(Vec<ContextFilter>),
-    Or(Vec<ContextFilter>),
-}
-
-pub enum RelationFilter {
-    From(Uuid),
-    To(Uuid),
-    Both(Uuid, Uuid),
-}
-
-pub enum TemporalFilter {
-    CreatedBefore(DateTime<Utc>),
-    CreatedAfter(DateTime<Utc>),
-    CreatedBetween(DateTime<Utc>, DateTime<Utc>),
-    UpdatedBefore(DateTime<Utc>),
-    UpdatedAfter(DateTime<Utc>),
-    UpdatedBetween(DateTime<Utc>, DateTime<Utc>),
-}
-```
-
-### `QueryResult`
-
-```rust
-pub struct QueryResult {
-    pub entry: Entry,
-    pub similarity_score: Option<f32>,
-    pub explanation: Option<String>,
-}
-```
-
-## Common patterns
-
-### Insert and fetch
-
-```rust
-let mut db = ContextDB::new("memories.db")?;
-let entry = Entry::new(vec![0.1, 0.2], "Hello".to_string());
-
-db.insert(&entry)?;
-let stored = db.get(entry.id)?;
-```
-
-### Semantic search with threshold
-
-```rust
-let results = db.query(
-    &Query::new()
-        .with_meaning(vec![0.2, 0.1], Some(0.8))
-        .with_limit(5)
-)?;
-```
-
-### Text search
-
-```rust
-let results = db.query(
-    &Query::new()
-        .with_expression(ExpressionFilter::Contains("onion".to_string()))
-)?;
-```
-
-### Context filter
-
-```rust
-use serde_json::json;
-
-let results = db.query(
-    &Query::new()
-        .with_context(ContextFilter::PathEquals("/category".to_string(), json!("dietary")))
-)?;
-```
-
-## Feature flags
-
-- `cli`: enables the `contextdb` CLI binary.
-- `ffi`: enables the C FFI layer.
-
-## Pitfalls
-- Handle `StorageResult<T>` errors explicitly.
-- Keep embedding dimensions consistent within a database.
-
-## Next steps
-- See `query-language.md` for richer filters.
-- See `usage.md` for real workflows.
 ---
 
 | Prev | Next |

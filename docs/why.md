@@ -57,7 +57,7 @@ Building LLM applications requires storing and retrieving context/memory. Existi
 - ✅ **Explainable** - Built-in query explanations
 - ✅ **Flexible** - Schema-less JSON metadata
 - ✅ **Unified** - One query API for semantic + structured + text + temporal
-- ✅ **Type-safe** - Compile-time query validation
+- ✅ **Typed** - Rust enums/builders plus runtime validation at the storage boundary
 
 ## Pitfalls
 - It is not a distributed, large-scale vector system.

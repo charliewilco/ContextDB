@@ -1,6 +1,6 @@
 use clap::{Parser, Subcommand};
 use colored::*;
-use contextdb::{ContextDB, Entry, ExpressionFilter, Query};
+use contextdb::{ContextDB, EmbeddingProfile, Entry, ExpressionFilter, Query, QueryOrder};
 use dialoguer::{theme::ColorfulTheme, Input};
 use indicatif::{ProgressBar, ProgressStyle};
 use std::path::PathBuf;
@@ -21,6 +21,28 @@ enum Commands {
 		/// Path to the database file
 		#[arg(default_value = "contextdb.db")]
 		path: PathBuf,
+	},
+
+	/// Add an entry to an existing database
+	Add {
+		/// Path to the database file
+		path: PathBuf,
+
+		/// Human-readable expression
+		#[arg(short, long)]
+		expression: String,
+
+		/// Comma-delimited embedding values
+		#[arg(short, long, value_delimiter = ',', num_args = 1..)]
+		meaning: Vec<f32>,
+
+		/// JSON context metadata
+		#[arg(short, long)]
+		context: Option<String>,
+
+		/// Related entry UUIDs
+		#[arg(short, long, value_delimiter = ',')]
+		relation: Vec<uuid::Uuid>,
 	},
 
 	/// Show database statistics
@@ -120,6 +142,51 @@ enum Commands {
 		#[arg(short, long, default_value = "10")]
 		count: usize,
 	},
+
+	/// Check database and index integrity
+	Check {
+		/// Path to the database file
+		path: PathBuf,
+	},
+
+	/// Create a consistent SQLite backup
+	Backup {
+		/// Path to the database file
+		path: PathBuf,
+		/// New backup file
+		output: PathBuf,
+	},
+
+	/// Restore a backup into a new database path
+	Restore {
+		/// Backup file
+		backup: PathBuf,
+		/// New destination database
+		destination: PathBuf,
+	},
+
+	/// Show or configure embedding identity
+	Profile {
+		/// Path to the database file
+		path: PathBuf,
+		/// Embedding model identifier
+		#[arg(long, requires = "dimensions")]
+		model: Option<String>,
+		/// Optional model revision
+		#[arg(long, requires = "model")]
+		version: Option<String>,
+		/// Embedding dimensions
+		#[arg(long, requires = "model")]
+		dimensions: Option<usize>,
+	},
+
+	/// Print durable revision history for an entry
+	Revisions {
+		/// Path to the database file
+		path: PathBuf,
+		/// Entry UUID or unique prefix
+		id: String,
+	},
 }
 
 #[derive(Tabled)]
@@ -138,11 +205,7 @@ struct EntryRow {
 
 impl From<&Entry> for EntryRow {
 	fn from(entry: &Entry) -> Self {
-		let expression = if entry.expression.len() > 50 {
-			format!("{}...", &entry.expression[..47])
-		} else {
-			entry.expression.clone()
-		};
+		let expression = truncate(&entry.expression, 50);
 
 		Self {
 			id: entry.id.to_string()[..8].to_string(),
@@ -159,6 +222,13 @@ fn main() {
 
 	let result = match cli.command {
 		Commands::Init { path } => cmd_init(path),
+		Commands::Add {
+			path,
+			expression,
+			meaning,
+			context,
+			relation,
+		} => cmd_add(path, expression, meaning, context, relation),
 		Commands::Stats { path } => cmd_stats(path),
 		Commands::Search {
 			path,
@@ -178,12 +248,121 @@ fn main() {
 		Commands::Delete { path, id, force } => cmd_delete(path, id, force),
 		Commands::Repl { path } => cmd_repl(path),
 		Commands::Recent { path, count } => cmd_recent(path, count),
+		Commands::Check { path } => cmd_check(path),
+		Commands::Backup { path, output } => cmd_backup(path, output),
+		Commands::Restore {
+			backup,
+			destination,
+		} => cmd_restore(backup, destination),
+		Commands::Profile {
+			path,
+			model,
+			version,
+			dimensions,
+		} => cmd_profile(path, model, version, dimensions),
+		Commands::Revisions { path, id } => cmd_revisions(path, id),
 	};
 
 	if let Err(e) = result {
 		eprintln!("{} {}", "Error:".red().bold(), e);
 		std::process::exit(1);
 	}
+}
+
+fn cmd_check(path: PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+	let db = open_db(&path)?;
+	let report = db.integrity_check()?;
+	if report.is_healthy() {
+		println!("{} Database integrity check passed", "✓".green().bold());
+		return Ok(());
+	}
+	for issue in report.issues {
+		eprintln!("{}: {}", issue.area, issue.message);
+	}
+	Err("Database integrity check failed".into())
+}
+
+fn cmd_backup(path: PathBuf, output: PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+	let db = open_db(&path)?;
+	db.backup_to(&output)?;
+	println!(
+		"{} Backed up database to {}",
+		"✓".green().bold(),
+		output.display()
+	);
+	Ok(())
+}
+
+fn cmd_restore(backup: PathBuf, destination: PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+	if !backup.exists() {
+		return Err(format!("Backup not found: {}", backup.display()).into());
+	}
+	let db = ContextDB::restore(&backup, &destination)?;
+	let report = db.integrity_check()?;
+	if !report.is_healthy() {
+		return Err("Restored database failed its integrity check".into());
+	}
+	println!(
+		"{} Restored database to {}",
+		"✓".green().bold(),
+		destination.display()
+	);
+	Ok(())
+}
+
+fn cmd_profile(
+	path: PathBuf,
+	model: Option<String>,
+	version: Option<String>,
+	dimensions: Option<usize>,
+) -> Result<(), Box<dyn std::error::Error>> {
+	let mut db = open_db(&path)?;
+	if let Some(model) = model {
+		let profile = EmbeddingProfile {
+			model,
+			version,
+			dimensions: dimensions.ok_or("--dimensions is required with --model")?,
+		};
+		db.set_embedding_profile(&profile)?;
+		println!("{} Embedding profile configured", "✓".green().bold());
+		return Ok(());
+	}
+	match db.embedding_profile()? {
+		Some(profile) => println!("{}", serde_json::to_string_pretty(&profile)?),
+		None => println!("No embedding profile configured."),
+	}
+	Ok(())
+}
+
+fn cmd_revisions(path: PathBuf, id: String) -> Result<(), Box<dyn std::error::Error>> {
+	let db = open_db(&path)?;
+	let id = match uuid::Uuid::parse_str(&id) {
+		Ok(id) => id,
+		Err(_) => find_entry_by_partial_id(&db, &id)?.id,
+	};
+	println!("{}", serde_json::to_string_pretty(&db.revisions(id)?)?);
+	Ok(())
+}
+
+fn cmd_add(
+	path: PathBuf,
+	expression: String,
+	meaning: Vec<f32>,
+	context: Option<String>,
+	relations: Vec<uuid::Uuid>,
+) -> Result<(), Box<dyn std::error::Error>> {
+	let mut db = open_db(&path)?;
+	let context = context
+		.map(|value| serde_json::from_str(&value))
+		.transpose()?
+		.unwrap_or(serde_json::Value::Null);
+	let mut entry = Entry::new(meaning, expression).with_context(context);
+	for relation in relations {
+		entry = entry.add_relation(relation);
+	}
+	db.insert(&entry)?;
+	println!("{} Added entry {}", "✓".green().bold(), entry.id);
+	Ok(())
 }
 
 fn cmd_init(path: PathBuf) -> Result<(), Box<dyn std::error::Error>> {
@@ -278,13 +457,13 @@ fn cmd_search(
 fn cmd_list(
 	path: PathBuf,
 	limit: usize,
-	_offset: usize,
+	offset: usize,
 	format: String,
 ) -> Result<(), Box<dyn std::error::Error>> {
 	let db = open_db(&path)?;
 	let total = db.count()?;
 
-	let results = db.query(&Query::new().with_limit(limit))?;
+	let results = db.query(&Query::new().with_offset(offset).with_limit(limit))?;
 
 	println!(
 		"{} {} of {} entries",
@@ -397,13 +576,6 @@ fn cmd_export(path: PathBuf, output: Option<PathBuf>) -> Result<(), Box<dyn std:
 }
 
 fn cmd_import(path: PathBuf, input: PathBuf) -> Result<(), Box<dyn std::error::Error>> {
-	let mut db = if path.exists() {
-		ContextDB::new(&path)?
-	} else {
-		println!("{} Creating new database at {}", "→".blue(), path.display());
-		ContextDB::new(&path)?
-	};
-
 	let content = std::fs::read_to_string(&input)?;
 	let entries: Vec<Entry> = serde_json::from_str(&content)?;
 
@@ -414,28 +586,63 @@ fn cmd_import(path: PathBuf, input: PathBuf) -> Result<(), Box<dyn std::error::E
 			.progress_chars("#>-"),
 	);
 
-	let mut imported = 0;
-	for entry in &entries {
-		if db.insert(entry).is_ok() {
-			imported += 1;
-		}
-		pb.inc(1);
+	if path.exists() {
+		let mut db = ContextDB::new(&path)?;
+		db.insert_batch(&entries)?;
+	} else {
+		import_into_new_database(&path, &entries)?;
+		println!("{} Created database at {}", "→".blue(), path.display());
 	}
+	pb.set_position(entries.len() as u64);
 
 	pb.finish_with_message("done");
 
 	println!(
 		"{} Imported {} of {} entries",
 		"✓".green().bold(),
-		imported,
+		entries.len(),
 		entries.len()
 	);
 
 	Ok(())
 }
 
+fn import_into_new_database(
+	path: &std::path::Path,
+	entries: &[Entry],
+) -> Result<(), Box<dyn std::error::Error>> {
+	let parent = path.parent().unwrap_or_else(|| std::path::Path::new("."));
+	let file_name = path
+		.file_name()
+		.ok_or_else(|| format!("Invalid database path: {}", path.display()))?;
+	let mut temporary_name = std::ffi::OsString::from(".");
+	temporary_name.push(file_name);
+	temporary_name.push(format!(".{}.importing", uuid::Uuid::new_v4()));
+	let temporary_path = parent.join(temporary_name);
+
+	let result = (|| -> Result<(), Box<dyn std::error::Error>> {
+		let mut db = ContextDB::new(&temporary_path)?;
+		db.insert_batch(entries)?;
+		drop(db);
+		std::fs::hard_link(&temporary_path, path)?;
+		std::fs::remove_file(&temporary_path)?;
+		Ok(())
+	})();
+
+	if result.is_err() {
+		let _ = std::fs::remove_file(&temporary_path);
+		for suffix in ["-wal", "-shm"] {
+			let mut sidecar = temporary_path.as_os_str().to_os_string();
+			sidecar.push(suffix);
+			let _ = std::fs::remove_file(PathBuf::from(sidecar));
+		}
+	}
+
+	result
+}
+
 fn cmd_delete(path: PathBuf, id: String, force: bool) -> Result<(), Box<dyn std::error::Error>> {
-	let mut db = ContextDB::new(&path)?;
+	let mut db = open_db(&path)?;
 
 	let entry = find_entry_by_partial_id(&db, &id)?;
 
@@ -463,11 +670,11 @@ fn cmd_delete(path: PathBuf, id: String, force: bool) -> Result<(), Box<dyn std:
 
 fn cmd_recent(path: PathBuf, count: usize) -> Result<(), Box<dyn std::error::Error>> {
 	let db = open_db(&path)?;
-
-	// Get all and sort by created_at (in a real impl, we'd query with ordering)
-	let mut results = db.query(&Query::new())?;
-	results.sort_by(|a, b| b.entry.created_at.cmp(&a.entry.created_at));
-	results.truncate(count);
+	let results = db.query(
+		&Query::new()
+			.with_order(QueryOrder::CreatedAtDesc)
+			.with_limit(count),
+	)?;
 
 	if results.is_empty() {
 		println!("{}", "No entries found.".yellow());
@@ -577,9 +784,11 @@ fn cmd_repl(path: PathBuf) -> Result<(), Box<dyn std::error::Error>> {
 			}
 			"recent" => {
 				let count: usize = args.parse().unwrap_or(10);
-				let mut results = db.query(&Query::new())?;
-				results.sort_by(|a, b| b.entry.created_at.cmp(&a.entry.created_at));
-				results.truncate(count);
+				let results = db.query(
+					&Query::new()
+						.with_order(QueryOrder::CreatedAtDesc)
+						.with_limit(count),
+				)?;
 				for result in &results {
 					println!(
 						"{} | {} | {}",
@@ -647,9 +856,11 @@ fn find_entry_by_partial_id(
 }
 
 fn truncate(s: &str, max_len: usize) -> String {
-	if s.len() <= max_len {
+	if s.chars().count() <= max_len {
 		s.to_string()
+	} else if max_len <= 3 {
+		".".repeat(max_len)
 	} else {
-		format!("{}...", &s[..max_len - 3])
+		format!("{}...", s.chars().take(max_len - 3).collect::<String>())
 	}
 }

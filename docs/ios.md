@@ -1,149 +1,84 @@
-# Using ContextDB on iOS (FFI)
+# Using ContextDB on Apple Platforms
 
-## Overview
-Use ContextDB from iOS via the C FFI layer.
-
-## When to use
-- You are embedding ContextDB in an iOS app.
-
-## Examples
-
-## 1) Build the static libraries
-
-Install Rust targets for iOS device and simulator:
-
-```sh
-rustup target add aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios
-```
-
-Build the static libraries with the `ffi` feature:
-
-```sh
-cargo build --release --features ffi --target aarch64-apple-ios
-cargo build --release --features ffi --target aarch64-apple-ios-sim
-cargo build --release --features ffi --target x86_64-apple-ios
-```
-
-## 2) Create an XCFramework
-
-```sh
-xcodebuild -create-xcframework \
-  -library target/aarch64-apple-ios/release/libcontextdb.a \
-  -library target/aarch64-apple-ios-sim/release/libcontextdb.a \
-  -library target/x86_64-apple-ios/release/libcontextdb.a \
-  -output ContextDB.xcframework
-```
-
-If you only target Apple‑silicon simulators, you can omit the `x86_64-apple-ios` slice.
-
-## 3) Add a C header
-
-Create a header file in your app target (e.g. `ContextDBFFI.h`) and add the FFI declarations:
-
-```c
-#pragma once
-
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdint.h>
-
-typedef struct ContextDBHandle ContextDBHandle;
-
-typedef struct {
-    uint8_t id[16];
-    float score;
-    char *expression;
-} ContextDBQueryResult;
-
-char *contextdb_last_error_message(void);
-void contextdb_string_free(char *ptr);
-
-ContextDBHandle *contextdb_open(const char *path);
-void contextdb_close(ContextDBHandle *handle);
-
-bool contextdb_insert(ContextDBHandle *handle,
-                      const char *expression,
-                      const float *meaning_ptr,
-                      size_t meaning_len);
-
-bool contextdb_count(const ContextDBHandle *handle, size_t *out_count);
-
-ContextDBQueryResult *contextdb_query_meaning(const ContextDBHandle *handle,
-                                              const float *meaning_ptr,
-                                              size_t meaning_len,
-                                              float threshold,
-                                              size_t limit,
-                                              size_t *out_len);
-
-ContextDBQueryResult *contextdb_query_expression_contains(const ContextDBHandle *handle,
-                                                          const char *expression,
-                                                          size_t limit,
-                                                          size_t *out_len);
-
-void contextdb_query_results_free(ContextDBQueryResult *results, size_t len);
-```
-
-Expose this header to Swift via a bridging header or module map.
-
-## 4) Add the XCFramework to Xcode
-
-Drag `ContextDB.xcframework` into your project and ensure it’s linked in the target’s “Frameworks, Libraries, and Embedded Content”.
-
-## 5) Use from Swift (minimal example)
+ContextDB v0.1.0 provides a typed Swift package for iOS 15 or later and macOS 12
+or later. Add `https://github.com/charliewilco/ContextDB` as a Swift package
+dependency and select version `0.1.0`.
 
 ```swift
-import Foundation
-
-func openDatabasePath() -> String {
-    let url = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        .appendingPathComponent("contextdb.db")
-    return url.path
-}
-
-let handle = openDatabasePath().withCString { path in
-    contextdb_open(path)
-}
-
-guard let db = handle else {
-    if let err = contextdb_last_error_message() {
-        let message = String(cString: err)
-        contextdb_string_free(err)
-        print("ContextDB error:", message)
-    }
-    fatalError("Failed to open DB")
-}
-
-let vector: [Float] = [0.1, 0.2, 0.3]
-let expression = "hello iOS"
-expression.withCString { expr in
-    vector.withUnsafeBufferPointer { buf in
-        _ = contextdb_insert(db, expr, buf.baseAddress, buf.count)
-    }
-}
-
-var outLen: Int = 0
-let results = vector.withUnsafeBufferPointer { buf in
-    contextdb_query_meaning(db, buf.baseAddress, buf.count, 0.0, 10, &outLen)
-}
-
-if let results {
-    for i in 0..<outLen {
-        let item = results.advanced(by: i).pointee
-        if let expr = item.expression {
-            print(String(cString: expr), item.score)
-        }
-    }
-    contextdb_query_results_free(results, outLen)
-}
-
-contextdb_close(db)
+.package(
+	url: "https://github.com/charliewilco/ContextDB",
+	exact: "0.1.0"
+)
 ```
 
-## Pitfalls
-- Always free FFI strings and result buffers.
+The package downloads a checksum-verified XCFramework containing the Rust core and
+links the public `ContextDB` Swift library over its versioned C ABI.
 
-## Next steps
-- See `api-reference.md` for core types.
+## Use the Swift API
+
+```swift
+import ContextDB
+
+let database = try ContextDatabase(path: databaseURL)
+let entry = try database.insert(
+	expression: "Swift-native access",
+	meaning: [0.2, 0.8],
+	context: .object(["platform": .string("iOS")])
+)
+let matches = try database.query(
+	Query(
+		expression: .fullText("Swift"),
+		context: .pathEquals("/platform", .string("iOS"))
+	)
+)
+```
+
+`ContextDatabase`, `Entry`, `Query`, the filter types, and `JSONValue` are public
+Swift types. The wrapper serializes the typed API through the versioned JSON C ABI.
+
+## Build the binary package from source
+
+ContextDB can build as a static library with the `ffi` feature. The repository's
+canonical ABI declarations are in `include/contextdb.h`; use that header rather
+than copying declarations into an app.
+
+The checked-in builder produces an iOS device slice plus universal Apple Silicon/Intel
+simulator and macOS slices with the canonical header and module map:
+
+```sh
+./scripts/build_xcframework.sh
+```
+
+It writes `dist/ContextDB.xcframework` and refuses to overwrite an existing artifact.
+The script pins the package's iOS 15 and macOS 12 deployment targets and supports an
+external Cargo build directory through `CARGO_TARGET_DIR`.
+
+Create the release archive and its SwiftPM checksum with:
+
+```sh
+./scripts/package_xcframework.sh
+```
+
+The packager also refuses to overwrite an existing archive. Publish that exact ZIP,
+then use the printed checksum in a remote SwiftPM binary target.
+
+## ABI v1
+
+Check `contextdb_abi_version()` before using an unfamiliar binary. ABI v1 includes open/close, count, legacy insert/search helpers, and JSON operations for insert, get, update, delete, and the complete serialized Rust `Query`/`QueryResult` surface:
+
+- `contextdb_insert_json`
+- `contextdb_get_json`
+- `contextdb_update_json`
+- `contextdb_delete_id`
+- `contextdb_query_json`
+
+JSON calls return `CONTEXTDB_STATUS_OK`, `INVALID_ARGUMENT`, `NOT_FOUND`, `DATABASE`, or `PANIC`. Read `contextdb_last_error_code()` and copy/free `contextdb_last_error_message()` as needed. All returned C strings must be released with `contextdb_string_free`; legacy result arrays must be released with `contextdb_query_results_free` using the exact returned length.
+
+Database operations contain Rust panics and convert them to the panic status or the documented fallback. Deallocation functions still require exactly the pointer and length returned by ContextDB; invalid foreign pointers are undefined behavior and cannot be repaired by panic containment. Pointer lifetime and thread coordination remain the caller's responsibility. A handle must not be used after close, and mutable operations must not race on the same handle.
+
+The C ABI and synchronous Swift wrapper are implemented. The wrapper does not
+currently expose an async or actor-based concurrency layer.
+
 ---
 
 | Prev | Next |

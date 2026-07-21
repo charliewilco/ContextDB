@@ -43,8 +43,8 @@ Design ideas and the mental model behind ContextDB.
 │  └─────────────────┴─────────────────┘ │
 │            ↓              ↓             │
 │  ┌─────────────────┬─────────────────┐ │
-│  │  Vector Index   │ Text/Metadata   │ │
-│  │   (similarity)  │  (structured)   │ │
+│  │ Linear Cosine   │  FTS5/JSON      │ │
+│  │   Ranking       │  Filtering      │ │
 │  └─────────────────┴─────────────────┘ │
 └─────────────────────────────────────────┘
 ```
@@ -195,7 +195,7 @@ The `context` field is schema-less JSON:
 }
 ```
 
-But queries are **type-safe** and **composable**:
+Queries use typed Rust filters and are composable:
 
 ```rust
 ContextFilter::And(vec![
@@ -206,7 +206,7 @@ ContextFilter::And(vec![
 
 This gives you:
 - **Flexibility**: Different applications can use different schemas
-- **Safety**: Queries are validated at compile time
+- **Safety**: Filter shape is typed; vectors, ranges, paths, and cross-entry invariants are validated at runtime
 - **Composability**: Filters can be combined arbitrarily
 
 ## Memory as a First-Class Concept

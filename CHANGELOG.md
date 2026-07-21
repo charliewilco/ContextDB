@@ -7,23 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-07-21
+
 ### Added
-- Expanded documentation across README, ARCHITECTURE, CONCEPTS, and EMBEDDINGS
-- New examples: relations, lifecycle, and advanced query construction
+- Atomic insert, update, and delete batch APIs
+- Schema version 2 with validated transactional migration
+- FTS5 full-text retrieval, normalized BM25 scores, and weighted hybrid ranking
+- Deterministic query ordering, offset pagination, and cursor continuation
+- Database-wide embedding profiles and vector-dimension enforcement
+- Explicit legacy-profile adoption and atomic complete re-embedding migration
+- Context JSON expression indexes
+- Entry revision history
+- Integrity checking and SQLite online backup/restore
+- CLI `add`, integrity, backup/restore, embedding-profile, and revision commands plus atomic JSON import
+- C ABI version 1 JSON operations for insert, get, update, delete, and query
+- Typed Swift package with a checksum-addressed XCFramework for iOS and macOS
+- Typed query execution plans with measured stages, ranking, ordering, and pagination
+- Expanded documentation and examples
 
 ### Fixed
-- Documentation accuracy for update/delete and query construction
+- Regex filters now evaluate actual patterns without a literal SQL prefilter
+- Non-finite, empty, and mixed-dimension vectors are rejected
+- Missing updates and deletes report `NotFound`
+- Mutations are transactional and relation foreign keys are enforced
+- Relation semantics are consistently directed
+- CLI offset pagination is applied and Unicode output truncation is safe
+- FFI operations contain Rust panics and return structured status codes
+- Documentation now distinguishes implemented behavior from future work
 
-### Planned
-- HNSW index for approximate nearest neighbor search
-- Batch insertion API
-- GraphQL API
-- HTTP server mode
-- Query language parser
-- Python client library
-- JavaScript client library
-
-## [0.1.0] - 2026-01-20
+## Initial development
 
 ### Added
 - Initial release of ContextDB
@@ -46,7 +58,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Design Decisions
 - Embedded library (no server required)
 - Co-equal representations of semantic and linguistic data
-- Schema-less JSON metadata with type-safe queries
+- Schema-less JSON metadata with typed query builders
 - Linear scan for vector search (HNSW planned for future)
 
 ### Known Limitations

@@ -2,6 +2,7 @@
 name = "contextdb"
 version = "0.1.0"
 edition = "2021"
+rust-version = "1.75"
 description = "A semantic database for LLM applications with human-readable inspection"
 license = "MIT"
 repository = "https://github.com/charliewilco/contextdb"
@@ -19,21 +20,18 @@ path = "src/lib.rs"
 crate-type = ["rlib", "staticlib", "cdylib"]
 
 [dependencies]
-uuid = { version = "1.6", features = ["v4", "serde"] }
+uuid = { version = "=1.19.0", features = ["v4", "serde"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 chrono = { version = "0.4", features = ["serde"] }
 thiserror = "1.0"
 regex = "1"
 
-# Vector operations
-ndarray = "0.15"
-
 # Storage backends
-rusqlite = { version = "0.30", features = ["bundled"] }
+rusqlite = { version = "0.30", features = ["backup", "bundled"] }
 
 # CLI dependencies
-clap = { version = "4.4", features = ["derive", "env"], optional = true }
+clap = { version = "=4.5.54", features = ["derive", "env"], optional = true }
 colored = { version = "2.1", optional = true }
 tabled = { version = "0.15", optional = true }
 dialoguer = { version = "0.11", optional = true }
@@ -51,9 +49,9 @@ ffi = []
 [dev-dependencies]
 anyhow = "1.0"
 criterion = "0.5"
-assert_cmd = "2.0"
+assert_cmd = "=2.1.2"
 predicates = "3.1"
-tempfile = "3.10"
+tempfile = "=3.24.0"
 
 [[bench]]
 name = "contextdb_bench"

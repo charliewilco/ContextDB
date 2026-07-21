@@ -15,6 +15,7 @@ fn make_vector(seed: usize, dim: usize) -> Vec<f32> {
 		.collect()
 }
 
+#[allow(clippy::manual_is_multiple_of)]
 fn make_entry(index: usize, dim: usize) -> Entry {
 	let expression = if index % 10 == 0 {
 		format!("alpha entry {index}")
@@ -45,13 +46,11 @@ fn populate_db(count: usize, dim: usize) -> ContextDB {
 
 fn bench_insert_batch(c: &mut Criterion) {
 	let entries = build_entries(INSERT_COUNT, DIMENSIONS);
-	c.bench_function("insert_1k", |b| {
+	c.bench_function("insert_1k_batch", |b| {
 		b.iter_batched(
 			|| ContextDB::in_memory().expect("in-memory db"),
 			|mut db| {
-				for entry in &entries {
-					db.insert(entry).expect("insert entry");
-				}
+				db.insert_batch(&entries).expect("insert entries");
 				black_box(db.count().expect("count entries"));
 			},
 			BatchSize::LargeInput,
@@ -86,8 +85,38 @@ fn bench_query_expression(c: &mut Criterion) {
 	});
 }
 
-fn bench_query_context(c: &mut Criterion) {
+fn bench_query_full_text(c: &mut Criterion) {
 	let db = populate_db(QUERY_COUNT, DIMENSIONS);
+	let query = Query::new().with_expression(ExpressionFilter::FullText("alpha".to_string()));
+
+	c.bench_function("query_full_text_5k", |b| {
+		b.iter(|| {
+			let results = db.query(&query).expect("query results");
+			black_box(results.len());
+		});
+	});
+}
+
+fn bench_query_hybrid(c: &mut Criterion) {
+	let db = populate_db(QUERY_COUNT, DIMENSIONS);
+	let query = Query::new()
+		.with_meaning(make_vector(QUERY_COUNT / 2, DIMENSIONS), None)
+		.with_expression(ExpressionFilter::FullText("alpha".to_string()))
+		.with_hybrid_weights(0.7, 0.3)
+		.with_limit(50);
+
+	c.bench_function("query_hybrid_5k", |b| {
+		b.iter(|| {
+			let results = db.query(&query).expect("query results");
+			black_box(results.len());
+		});
+	});
+}
+
+fn bench_query_context(c: &mut Criterion) {
+	let mut db = populate_db(QUERY_COUNT, DIMENSIONS);
+	db.create_context_index("/group")
+		.expect("create context index");
 	let query =
 		Query::new().with_context(ContextFilter::PathEquals("/group".to_string(), json!("a")));
 
@@ -104,6 +133,8 @@ criterion_group!(
 	bench_insert_batch,
 	bench_query_meaning,
 	bench_query_expression,
+	bench_query_full_text,
+	bench_query_hybrid,
 	bench_query_context
 );
 criterion_main!(benches);

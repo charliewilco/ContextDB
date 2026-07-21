@@ -1,0 +1,4 @@
+module CContextDB {
+	header "contextdb.h"
+	export *
+}

@@ -78,7 +78,26 @@ func relationAndStructuredContextRoundTrip() throws {
 func missingEntryPreservesStructuredError() throws {
 	let database = try ContextDatabase()
 
-	#expect(throws: ContextDBError.self) {
+	do {
 		_ = try database.get(id: UUID())
+		Issue.record("Expected a not-found error")
+	} catch ContextDBError.notFound {
+		// Expected structured status.
+	} catch {
+		Issue.record("Expected ContextDBError.notFound, received \(error)")
+	}
+}
+
+@Test
+func invalidVectorPreservesStructuredError() throws {
+	let database = try ContextDatabase()
+
+	do {
+		_ = try database.insert(expression: "Invalid vector", meaning: [])
+		Issue.record("Expected an invalid-argument error")
+	} catch ContextDBError.invalidArgument {
+		// Expected structured status.
+	} catch {
+		Issue.record("Expected ContextDBError.invalidArgument, received \(error)")
 	}
 }

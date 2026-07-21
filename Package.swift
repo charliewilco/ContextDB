@@ -14,8 +14,8 @@ let package = Package(
 	targets: [
 		.binaryTarget(
 			name: "CContextDB",
-			url: "https://github.com/charliewilco/ContextDB/releases/download/v0.1.0/ContextDB.xcframework.zip",
-			checksum: "2ae40df138e61416207382df471a2084b534e38a71cd4f9cef7728f9930553a8"
+			url: "https://github.com/charliewilco/ContextDB/releases/download/v0.1.1/ContextDB.xcframework.zip",
+			checksum: "04f3c5ef8718e3224e99afbfcd98d6449e0821c9c032c278e10e6773e9e96e82"
 		),
 		.target(
 			name: "ContextDB",

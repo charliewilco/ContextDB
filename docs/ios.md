@@ -1,13 +1,13 @@
 # Using ContextDB on Apple Platforms
 
-ContextDB v0.1.0 provides a typed Swift package for iOS 15 or later and macOS 12
+ContextDB v0.1.1 provides a typed Swift package for iOS 15 or later and macOS 12
 or later. Add `https://github.com/charliewilco/ContextDB` as a Swift package
-dependency and select version `0.1.0`.
+dependency and select version `0.1.1`.
 
 ```swift
 .package(
 	url: "https://github.com/charliewilco/ContextDB",
-	exact: "0.1.0"
+	exact: "0.1.1"
 )
 ```
 
@@ -72,7 +72,7 @@ Check `contextdb_abi_version()` before using an unfamiliar binary. ABI v1 includ
 - `contextdb_delete_id`
 - `contextdb_query_json`
 
-JSON calls return `CONTEXTDB_STATUS_OK`, `INVALID_ARGUMENT`, `NOT_FOUND`, `DATABASE`, or `PANIC`. Read `contextdb_last_error_code()` and copy/free `contextdb_last_error_message()` as needed. All returned C strings must be released with `contextdb_string_free`; legacy result arrays must be released with `contextdb_query_results_free` using the exact returned length.
+JSON calls return `CONTEXTDB_STATUS_OK`, `INVALID_ARGUMENT`, `NOT_FOUND`, `DATABASE`, or `PANIC`. Validation failures, including invalid vectors and query parameters, return `INVALID_ARGUMENT`; missing entries or relation targets return `NOT_FOUND`. The Swift wrapper maps these statuses to distinct `ContextDBError` cases. Read `contextdb_last_error_code()` and copy/free `contextdb_last_error_message()` as needed. All returned C strings must be released with `contextdb_string_free`; legacy result arrays must be released with `contextdb_query_results_free` using the exact returned length.
 
 Database operations contain Rust panics and convert them to the panic status or the documented fallback. Deallocation functions still require exactly the pointer and length returned by ContextDB; invalid foreign pointers are undefined behavior and cannot be repaired by panic containment. Pointer lifetime and thread coordination remain the caller's responsibility. A handle must not be used after close, and mutable operations must not race on the same handle.
 

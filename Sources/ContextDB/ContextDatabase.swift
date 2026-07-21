@@ -3,14 +3,22 @@ import Foundation
 
 public enum ContextDBError: Error, LocalizedError, Sendable {
 	case incompatibleABIVersion(UInt32)
-	case operationFailed(status: Int32, message: String)
+	case invalidArgument(String)
+	case notFound(String)
+	case database(String)
+	case panic(String)
+	case unknown(status: Int32, message: String)
 	case missingOutput
 
 	public var errorDescription: String? {
 		switch self {
 		case .incompatibleABIVersion(let version):
 			return "Unsupported ContextDB ABI version: \(version)"
-		case .operationFailed(_, let message):
+		case .invalidArgument(let message),
+			.notFound(let message),
+			.database(let message),
+			.panic(let message),
+			.unknown(_, let message):
 			return message
 		case .missingOutput:
 			return "ContextDB returned success without output."
@@ -155,10 +163,22 @@ public final class ContextDatabase {
 
 	private static func lastError(status: Int32 = contextdb_last_error_code()) -> ContextDBError {
 		guard let message = contextdb_last_error_message() else {
-			return .operationFailed(status: status, message: "Unknown ContextDB error")
+			return .unknown(status: status, message: "Unknown ContextDB error")
 		}
 		defer { contextdb_string_free(message) }
-		return .operationFailed(status: status, message: String(cString: message))
+		let value = String(cString: message)
+		switch Int(status) {
+		case CONTEXTDB_STATUS_INVALID_ARGUMENT:
+			return .invalidArgument(value)
+		case CONTEXTDB_STATUS_NOT_FOUND:
+			return .notFound(value)
+		case CONTEXTDB_STATUS_DATABASE:
+			return .database(value)
+		case CONTEXTDB_STATUS_PANIC:
+			return .panic(value)
+		default:
+			return .unknown(status: status, message: value)
+		}
 	}
 }
 

@@ -18,6 +18,9 @@ pub enum StorageError {
 	#[error("Invalid vector dimensions")]
 	InvalidDimensions,
 
+	#[error("Invalid argument: {0}")]
+	InvalidArgument(String),
+
 	#[error("Storage backend error: {0}")]
 	Backend(Box<dyn std::error::Error + Send + Sync>),
 }
@@ -199,6 +202,15 @@ mod tests {
 	fn test_storage_error_invalid_dimensions_display() {
 		let error = StorageError::InvalidDimensions;
 		assert_eq!(error.to_string(), "Invalid vector dimensions");
+	}
+
+	#[test]
+	fn test_storage_error_invalid_argument_display() {
+		let error = StorageError::InvalidArgument("top_k must be greater than zero".to_string());
+		assert_eq!(
+			error.to_string(),
+			"Invalid argument: top_k must be greater than zero"
+		);
 	}
 
 	#[test]

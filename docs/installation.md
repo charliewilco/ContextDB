@@ -1,7 +1,7 @@
 # Installation
 
 ## Overview
-ContextDB v0.1.0 is available as a tagged Swift package with a binary XCFramework.
+ContextDB v0.1.1 is available as a tagged Swift package with a binary XCFramework.
 The Rust crate and Homebrew formula are not published registries or taps; install
 the pre-alpha CLI from Git or build a checkout.
 
@@ -51,12 +51,12 @@ cargo run --features cli --bin contextdb -- --help
 ## Swift Package Manager
 
 Add `https://github.com/charliewilco/ContextDB` to an Xcode project and select
-version `0.1.0`, or add the package in a manifest:
+version `0.1.1`, or add the package in a manifest:
 
 ```swift
 .package(
 	url: "https://github.com/charliewilco/ContextDB",
-	exact: "0.1.0"
+	exact: "0.1.1"
 )
 ```
 

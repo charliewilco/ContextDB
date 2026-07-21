@@ -369,7 +369,7 @@ impl SqliteStorage {
 			.as_ref()
 			.is_some_and(|version| version.trim().is_empty())
 		{
-			return Err(StorageError::Database(
+			return Err(StorageError::InvalidArgument(
 				"Embedding profile version cannot be empty".to_string(),
 			));
 		}
@@ -517,7 +517,7 @@ impl SqliteStorage {
 			return Err(StorageError::InvalidDimensions);
 		}
 		if entry.relations.contains(&entry.id) {
-			return Err(StorageError::Database(
+			return Err(StorageError::InvalidArgument(
 				"An entry cannot relate to itself".to_string(),
 			));
 		}
@@ -528,12 +528,12 @@ impl SqliteStorage {
 			.collect::<HashSet<_>>()
 			.len() != entry.relations.len()
 		{
-			return Err(StorageError::Database(
+			return Err(StorageError::InvalidArgument(
 				"Entry contains duplicate relation IDs".to_string(),
 			));
 		}
 		if entry.updated_at < entry.created_at {
-			return Err(StorageError::Database(
+			return Err(StorageError::InvalidArgument(
 				"updated_at cannot be earlier than created_at".to_string(),
 			));
 		}
@@ -542,7 +542,7 @@ impl SqliteStorage {
 
 	fn validate_query(&self, query: &Query) -> StorageResult<()> {
 		if query.cursor.is_some() && query.offset > 0 {
-			return Err(StorageError::Database(
+			return Err(StorageError::InvalidArgument(
 				"A query cannot use both cursor and offset pagination".to_string(),
 			));
 		}
@@ -557,12 +557,12 @@ impl SqliteStorage {
 			if meaning.threshold.is_some_and(|threshold| {
 				!threshold.is_finite() || !(0.0..=1.0).contains(&threshold)
 			}) {
-				return Err(StorageError::Database(
+				return Err(StorageError::InvalidArgument(
 					"Similarity threshold must be finite and between 0 and 1".to_string(),
 				));
 			}
 			if meaning.top_k == Some(0) {
-				return Err(StorageError::Database(
+				return Err(StorageError::InvalidArgument(
 					"top_k must be greater than zero".to_string(),
 				));
 			}
@@ -574,7 +574,7 @@ impl SqliteStorage {
 				|| weights.lexical < 0.0
 				|| weights.semantic + weights.lexical == 0.0
 			{
-				return Err(StorageError::Database(
+				return Err(StorageError::InvalidArgument(
 					"Hybrid weights must be finite, non-negative, and have a positive sum"
 						.to_string(),
 				));
@@ -582,7 +582,7 @@ impl SqliteStorage {
 			if query.meaning.is_none()
 				|| !matches!(query.expression, Some(ExpressionFilter::FullText(_)))
 			{
-				return Err(StorageError::Database(
+				return Err(StorageError::InvalidArgument(
 					"Hybrid weights require both meaning and full-text filters".to_string(),
 				));
 			}
@@ -591,7 +591,7 @@ impl SqliteStorage {
 			query.temporal,
 			Some(TemporalFilter::CreatedBetween(start, end)) if start >= end
 		) {
-			return Err(StorageError::Database(
+			return Err(StorageError::InvalidArgument(
 				"CreatedBetween start must be before end".to_string(),
 			));
 		}
@@ -698,7 +698,7 @@ impl SqliteStorage {
 			ExpressionFilter::StartsWith(s) => Ok(expression.starts_with(s)),
 			ExpressionFilter::Matches(pattern) => {
 				let regex = Regex::new(pattern)
-					.map_err(|e| StorageError::Database(format!("Invalid regex: {}", e)))?;
+					.map_err(|e| StorageError::InvalidArgument(format!("Invalid regex: {e}")))?;
 				Ok(regex.is_match(expression))
 			}
 			ExpressionFilter::FullText(_) => Ok(true),
@@ -985,7 +985,7 @@ impl SqliteStorage {
 			}
 			ExpressionFilter::Matches(value) => {
 				let _ = Regex::new(value)
-					.map_err(|e| StorageError::Database(format!("Invalid regex: {}", e)))?;
+					.map_err(|e| StorageError::InvalidArgument(format!("Invalid regex: {e}")))?;
 				self.get_entry_ids()
 			}
 			ExpressionFilter::FullText(value) => {
@@ -1115,7 +1115,7 @@ impl SqliteStorage {
 			return Ok("$".to_string());
 		}
 		if !pointer.starts_with('/') {
-			return Err(StorageError::Database(format!(
+			return Err(StorageError::InvalidArgument(format!(
 				"Invalid JSON Pointer: {pointer}"
 			)));
 		}
@@ -4023,7 +4023,7 @@ mod tests {
 		let result = storage.query(&query);
 
 		match result {
-			Err(StorageError::Database(message)) => {
+			Err(StorageError::InvalidArgument(message)) => {
 				assert!(message.contains("Invalid regex"));
 			}
 			_ => panic!("Expected invalid regex error"),

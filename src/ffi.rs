@@ -42,6 +42,15 @@ fn set_last_error(message: impl ToString) {
 	set_last_error_with_code(CONTEXTDB_STATUS_DATABASE, message);
 }
 
+fn set_invalid_argument(message: impl ToString) {
+	set_last_error_with_code(CONTEXTDB_STATUS_INVALID_ARGUMENT, message);
+}
+
+fn set_storage_error(error: crate::StorageError) {
+	let (code, message) = storage_status(error);
+	set_last_error_with_code(code, message);
+}
+
 fn set_last_error_with_code(code: i32, message: impl ToString) {
 	let message = CString::new(message.to_string())
 		.unwrap_or_else(|_| CString::new("unknown error").unwrap());
@@ -86,10 +95,14 @@ fn value_guard<T>(fallback: T, operation: impl FnOnce() -> T) -> T {
 }
 
 fn storage_status(error: crate::StorageError) -> (i32, String) {
-	let code = if matches!(error, crate::StorageError::NotFound(_)) {
-		CONTEXTDB_STATUS_NOT_FOUND
-	} else {
-		CONTEXTDB_STATUS_DATABASE
+	let code = match &error {
+		crate::StorageError::NotFound(_) => CONTEXTDB_STATUS_NOT_FOUND,
+		crate::StorageError::InvalidDimensions | crate::StorageError::InvalidArgument(_) => {
+			CONTEXTDB_STATUS_INVALID_ARGUMENT
+		}
+		crate::StorageError::Database(_)
+		| crate::StorageError::Serialization(_)
+		| crate::StorageError::Backend(_) => CONTEXTDB_STATUS_DATABASE,
 	};
 	(code, error.to_string())
 }
@@ -312,7 +325,7 @@ fn contextdb_open_impl(path: *const c_char) -> *mut ContextDBHandle {
 			Ok(path) if path.is_empty() => ContextDB::in_memory(),
 			Ok(path) => ContextDB::new(path),
 			Err(message) => {
-				set_last_error(message);
+				set_invalid_argument(message);
 				return ptr::null_mut();
 			}
 		}
@@ -324,7 +337,7 @@ fn contextdb_open_impl(path: *const c_char) -> *mut ContextDBHandle {
 			Box::into_raw(Box::new(ContextDBHandle { db }))
 		}
 		Err(err) => {
-			set_last_error(err.to_string());
+			set_storage_error(err);
 			ptr::null_mut()
 		}
 	}
@@ -364,18 +377,18 @@ unsafe fn contextdb_insert_impl(
 	meaning_len: usize,
 ) -> bool {
 	if handle.is_null() {
-		set_last_error("handle was null");
+		set_invalid_argument("handle was null");
 		return false;
 	}
 	if meaning_ptr.is_null() && meaning_len > 0 {
-		set_last_error("meaning pointer was null");
+		set_invalid_argument("meaning pointer was null");
 		return false;
 	}
 
 	let expression = match cstr_to_string(expression, "expression") {
 		Ok(value) => value,
 		Err(message) => {
-			set_last_error(message);
+			set_invalid_argument(message);
 			return false;
 		}
 	};
@@ -393,7 +406,7 @@ unsafe fn contextdb_insert_impl(
 			true
 		}
 		Err(err) => {
-			set_last_error(err.to_string());
+			set_storage_error(err);
 			false
 		}
 	}
@@ -412,11 +425,11 @@ pub unsafe extern "C" fn contextdb_count(
 
 unsafe fn contextdb_count_impl(handle: *const ContextDBHandle, out_count: *mut usize) -> bool {
 	if handle.is_null() {
-		set_last_error("handle was null");
+		set_invalid_argument("handle was null");
 		return false;
 	}
 	if out_count.is_null() {
-		set_last_error("out_count pointer was null");
+		set_invalid_argument("out_count pointer was null");
 		return false;
 	}
 
@@ -427,7 +440,7 @@ unsafe fn contextdb_count_impl(handle: *const ContextDBHandle, out_count: *mut u
 			true
 		}
 		Err(err) => {
-			set_last_error(err.to_string());
+			set_storage_error(err);
 			false
 		}
 	}
@@ -461,15 +474,15 @@ unsafe fn contextdb_query_meaning_impl(
 	out_len: *mut usize,
 ) -> *mut ContextDBQueryResult {
 	if handle.is_null() {
-		set_last_error("handle was null");
+		set_invalid_argument("handle was null");
 		return ptr::null_mut();
 	}
 	if meaning_ptr.is_null() && meaning_len > 0 {
-		set_last_error("meaning pointer was null");
+		set_invalid_argument("meaning pointer was null");
 		return ptr::null_mut();
 	}
 	if out_len.is_null() {
-		set_last_error("out_len pointer was null");
+		set_invalid_argument("out_len pointer was null");
 		return ptr::null_mut();
 	}
 
@@ -492,7 +505,7 @@ unsafe fn contextdb_query_meaning_impl(
 	let results = match (&*handle).db.query(&query) {
 		Ok(results) => results,
 		Err(err) => {
-			set_last_error(err.to_string());
+			set_storage_error(err);
 			return ptr::null_mut();
 		}
 	};
@@ -552,18 +565,18 @@ unsafe fn contextdb_query_expression_contains_impl(
 	out_len: *mut usize,
 ) -> *mut ContextDBQueryResult {
 	if handle.is_null() {
-		set_last_error("handle was null");
+		set_invalid_argument("handle was null");
 		return ptr::null_mut();
 	}
 	if out_len.is_null() {
-		set_last_error("out_len pointer was null");
+		set_invalid_argument("out_len pointer was null");
 		return ptr::null_mut();
 	}
 
 	let expression = match cstr_to_string(expression, "expression") {
 		Ok(value) => value,
 		Err(message) => {
-			set_last_error(message);
+			set_invalid_argument(message);
 			return ptr::null_mut();
 		}
 	};
@@ -576,7 +589,7 @@ unsafe fn contextdb_query_expression_contains_impl(
 	let results = match (&*handle).db.query(&query) {
 		Ok(results) => results,
 		Err(err) => {
-			set_last_error(err.to_string());
+			set_storage_error(err);
 			return ptr::null_mut();
 		}
 	};
@@ -780,6 +793,80 @@ mod tests {
 		let mut count = usize::MAX;
 		assert!(unsafe { contextdb_count(handle, &mut count) });
 		assert_eq!(count, 0, "a rejected insert must not mutate the database");
+		unsafe { contextdb_close(handle) };
+	}
+
+	#[test]
+	fn test_json_ffi_preserves_domain_error_categories() {
+		let handle = contextdb_open(ptr::null());
+		assert!(!handle.is_null());
+
+		let empty_vector = CString::new(r#"{"expression":"empty","meaning":[]}"#).unwrap();
+		let mut output = ptr::null_mut();
+		assert_eq!(
+			unsafe { contextdb_insert_json(handle, empty_vector.as_ptr(), &mut output) },
+			CONTEXTDB_STATUS_INVALID_ARGUMENT
+		);
+		assert_eq!(
+			contextdb_last_error_code(),
+			CONTEXTDB_STATUS_INVALID_ARGUMENT
+		);
+
+		let request = CString::new(r#"{"expression":"valid","meaning":[0.1,0.2]}"#).unwrap();
+		assert_eq!(
+			unsafe { contextdb_insert_json(handle, request.as_ptr(), &mut output) },
+			CONTEXTDB_STATUS_OK
+		);
+		let id = unsafe { CStr::from_ptr(output) }
+			.to_string_lossy()
+			.into_owned();
+		unsafe { contextdb_string_free(output) };
+
+		let invalid_queries = [
+			Query::new().with_meaning(vec![0.1, 0.2], Some(-0.1)),
+			Query::new()
+				.with_meaning(vec![0.1, 0.2], None)
+				.with_top_k(0),
+			Query::new().with_expression(ExpressionFilter::Matches("[".to_string())),
+			Query::new().with_temporal(crate::TemporalFilter::CreatedBetween(
+				chrono::DateTime::parse_from_rfc3339("2026-01-02T00:00:00Z")
+					.unwrap()
+					.with_timezone(&chrono::Utc),
+				chrono::DateTime::parse_from_rfc3339("2026-01-01T00:00:00Z")
+					.unwrap()
+					.with_timezone(&chrono::Utc),
+			)),
+		];
+		for query in invalid_queries {
+			let query = CString::new(serde_json::to_string(&query).unwrap()).unwrap();
+			let mut results = ptr::null_mut();
+			assert_eq!(
+				unsafe { contextdb_query_json(handle, query.as_ptr(), &mut results) },
+				CONTEXTDB_STATUS_INVALID_ARGUMENT
+			);
+			assert_eq!(
+				contextdb_last_error_code(),
+				CONTEXTDB_STATUS_INVALID_ARGUMENT
+			);
+		}
+
+		let id = uuid::Uuid::parse_str(&id).unwrap();
+		let mut entry = unsafe { (&*handle).db.get(id).unwrap() };
+		entry.relations = vec![id];
+		let update = CString::new(serde_json::to_string(&entry).unwrap()).unwrap();
+		assert_eq!(
+			unsafe { contextdb_update_json(handle, update.as_ptr()) },
+			CONTEXTDB_STATUS_INVALID_ARGUMENT
+		);
+
+		entry.relations = vec![uuid::Uuid::new_v4()];
+		let update = CString::new(serde_json::to_string(&entry).unwrap()).unwrap();
+		assert_eq!(
+			unsafe { contextdb_update_json(handle, update.as_ptr()) },
+			CONTEXTDB_STATUS_NOT_FOUND
+		);
+		assert_eq!(contextdb_last_error_code(), CONTEXTDB_STATUS_NOT_FOUND);
+
 		unsafe { contextdb_close(handle) };
 	}
 }

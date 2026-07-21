@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-07-21
+
+### Fixed
+- Preserve invalid-argument, not-found, database, and panic error categories through the C and Swift APIs
+
 ## [0.1.0] - 2026-07-21
 
 ### Added
@@ -66,5 +71,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Single-threaded query execution
 - Not optimized for > 100k entries
 
-[Unreleased]: https://github.com/charliewilco/contextdb/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/charliewilco/contextdb/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/charliewilco/contextdb/releases/tag/v0.1.1
 [0.1.0]: https://github.com/charliewilco/contextdb/releases/tag/v0.1.0

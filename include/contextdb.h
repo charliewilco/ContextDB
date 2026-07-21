@@ -17,6 +17,17 @@ typedef struct ContextDBQueryResult {
     char *expression;
 } ContextDBQueryResult;
 
+enum {
+    CONTEXTDB_STATUS_OK = 0,
+    CONTEXTDB_STATUS_INVALID_ARGUMENT = 1,
+    CONTEXTDB_STATUS_NOT_FOUND = 2,
+    CONTEXTDB_STATUS_DATABASE = 3,
+    CONTEXTDB_STATUS_PANIC = 4,
+};
+
+uint32_t contextdb_abi_version(void);
+int32_t contextdb_last_error_code(void);
+
 ContextDBHandle *contextdb_open(const char *path);
 void contextdb_close(ContextDBHandle *handle);
 
@@ -26,6 +37,20 @@ bool contextdb_insert(ContextDBHandle *handle,
                       size_t meaning_len);
 
 bool contextdb_count(const ContextDBHandle *handle, size_t *out_count);
+
+// JSON APIs return a ContextDB status code. Returned strings are owned by the
+// caller and must be released with contextdb_string_free.
+int32_t contextdb_insert_json(ContextDBHandle *handle,
+                              const char *json,
+                              char **out_id);
+int32_t contextdb_get_json(const ContextDBHandle *handle,
+                           const char *id,
+                           char **out_json);
+int32_t contextdb_update_json(ContextDBHandle *handle, const char *json);
+int32_t contextdb_delete_id(ContextDBHandle *handle, const char *id);
+int32_t contextdb_query_json(const ContextDBHandle *handle,
+                             const char *json,
+                             char **out_json);
 
 // Returns a newly allocated results array owned by the caller.
 // The length is written to out_len (must be non-NULL). Free with
